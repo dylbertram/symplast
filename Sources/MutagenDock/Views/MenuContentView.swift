@@ -14,7 +14,7 @@ struct MenuContentView: View {
                 SettingsView(store: store)
             }
         }
-        .frame(width: Layout.panelWidth)
+        .frame(width: Layout.panelWidth, height: Layout.panelHeight)
     }
 
     // MARK: - List
@@ -43,7 +43,7 @@ struct MenuContentView: View {
     private var content: some View {
         if store.sessions.isEmpty && store.stoppedDefinitions.isEmpty {
             emptyState
-                .frame(height: Layout.contentHeight)
+                .frame(maxHeight: .infinity)
         } else {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 0) {
@@ -65,7 +65,7 @@ struct MenuContentView: View {
                     }
                 }
             }
-            .frame(height: Layout.contentHeight)
+            .frame(maxHeight: .infinity)
         }
     }
 

@@ -66,4 +66,18 @@ enum SyncMode: String, CaseIterable, Identifiable {
         case .oneWayReplica: return "One-way (replica)"
         }
     }
+
+    /// Explanation shown beneath the picker for the selected mode.
+    var detail: String {
+        switch self {
+        case .twoWaySafe:
+            return "Changes flow in both directions. If both sides edit the same file, it is left as a conflict for you to resolve."
+        case .twoWayResolved:
+            return "Changes flow in both directions, but conflicts are resolved automatically in favour of the local (alpha) side."
+        case .oneWaySafe:
+            return "Only the local (alpha) side propagates to the remote (beta). Remote-only edits are left untouched and can become conflicts."
+        case .oneWayReplica:
+            return "The remote (beta) is made an exact replica of the local (alpha). Remote-only files are overwritten or deleted — use with care."
+        }
+    }
 }
