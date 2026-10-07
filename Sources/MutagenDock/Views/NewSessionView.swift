@@ -19,14 +19,13 @@ struct NewSessionView: View {
                             .textFieldStyle(.roundedBorder)
                     }
 
-                    field("Local folder (alpha)") {
+                    field("Local folder") {
                         HStack(spacing: 6) {
-                            TextField("/Users/you/project", text: $store.draft.alpha)
+                            TextField("/Users/you/project", text: $store.draft.localPath)
                                 .textFieldStyle(.roundedBorder)
-                                .multilineTextAlignment(.trailing)
                             Button("Choose…") {
-                                if let chosen = FolderPicker.choose(initialPath: store.draft.alpha) {
-                                    store.draft.alpha = chosen
+                                if let chosen = FolderPicker.choose(initialPath: store.draft.localPath) {
+                                    store.draft.localPath = chosen
                                     if store.draft.name.isEmpty {
                                         store.draft.name = URL(fileURLWithPath: chosen).lastPathComponent + "-sync"
                                     }
@@ -36,25 +35,25 @@ struct NewSessionView: View {
                         }
                     }
 
-                    field("Remote / target (beta)") {
+                    field("Remote") {
                         VStack(alignment: .leading, spacing: 6) {
-                            Picker("", selection: $store.draft.betaMode) {
-                                ForEach(NewSessionDraft.BetaMode.allCases) { Text($0.title).tag($0) }
+                            Picker("", selection: $store.draft.targetKind) {
+                                ForEach(NewSessionDraft.TargetKind.allCases) { Text($0.title).tag($0) }
                             }
                             .pickerStyle(.segmented)
                             .labelsHidden()
 
-                            betaFields
+                            targetFields
                         }
                     }
 
                     field("Sync mode") {
                         VStack(alignment: .leading, spacing: 5) {
-                            Picker("", selection: $store.draft.mode) {
-                                ForEach(SyncMode.allCases) { Text($0.title).tag($0.rawValue) }
+                            Picker("", selection: $store.draft.modeChoice) {
+                                ForEach(NewSessionDraft.ModeChoice.allCases) { Text($0.title).tag($0) }
                             }
                             .labelsHidden()
-                            Text(selectedModeDetail)
+                            Text(store.draft.modeChoice.detail)
                                 .font(.system(size: 10))
                                 .foregroundStyle(.secondary)
                                 .fixedSize(horizontal: false, vertical: true)
@@ -94,8 +93,8 @@ struct NewSessionView: View {
     }
 
     @ViewBuilder
-    private var betaFields: some View {
-        switch store.draft.betaMode {
+    private var targetFields: some View {
+        switch store.draft.targetKind {
         case .remote:
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 5) {
@@ -106,33 +105,32 @@ struct NewSessionView: View {
                     TextField("host", text: $store.draft.sshHost)
                         .textFieldStyle(.roundedBorder)
                     Text(":").foregroundStyle(.secondary)
-                    TextField("22", text: $store.draft.sshPort)
-                        .textFieldStyle(.roundedBorder)
-                        .frame(width: 44)
+                    VStack(alignment: .leading, spacing: 1) {
+                        TextField("port", text: $store.draft.sshPort)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 48)
+                        Text("optional")
+                            .font(.system(size: 9))
+                            .foregroundStyle(.tertiary)
+                    }
                 }
-                Text("Remote path (optional)")
-                    .font(.system(size: 10))
-                    .foregroundStyle(.tertiary)
-                TextField("defaults to the home directory", text: $store.draft.sshPath)
+                TextField("/remote/path", text: $store.draft.sshPath)
                     .textFieldStyle(.roundedBorder)
-                    .multilineTextAlignment(.trailing)
             }
         case .local:
             HStack(spacing: 6) {
-                TextField("/path/to/other/folder", text: $store.draft.betaLocal)
+                TextField("/path/to/other/folder", text: $store.draft.localTargetPath)
                     .textFieldStyle(.roundedBorder)
-                    .multilineTextAlignment(.trailing)
                 Button("Choose…") {
-                    if let chosen = FolderPicker.choose(initialPath: store.draft.betaLocal) {
-                        store.draft.betaLocal = chosen
+                    if let chosen = FolderPicker.choose(initialPath: store.draft.localTargetPath) {
+                        store.draft.localTargetPath = chosen
                     }
                 }
                 .controlSize(.small)
             }
         case .custom:
-            TextField("user@host:/path or ssh://user@host:22/path", text: $store.draft.customBeta)
+            TextField("user@host:/path or ssh://user@host:22/path", text: $store.draft.customTarget)
                 .textFieldStyle(.roundedBorder)
-                .multilineTextAlignment(.trailing)
         }
     }
 
@@ -179,15 +177,11 @@ struct NewSessionView: View {
         return "Blocks: " + ignores.joined(separator: ", ")
     }
 
-    private var selectedModeDetail: String {
-        SyncMode(rawValue: store.draft.mode)?.detail ?? ""
-    }
-
     private func create() {
         error = nil
-        let alphaPath = PathUtil.expand(store.draft.alpha)
-        guard FileManager.default.fileExists(atPath: alphaPath) else {
-            error = "The local folder doesn’t exist: \(alphaPath)"
+        let localPath = PathUtil.expand(store.draft.localPath)
+        guard FileManager.default.fileExists(atPath: localPath) else {
+            error = "The local folder doesn’t exist: \(localPath)"
             return
         }
 

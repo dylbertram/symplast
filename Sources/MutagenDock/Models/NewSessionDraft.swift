@@ -13,7 +13,8 @@ enum Layout {
 /// the view) so that a folder-picker interaction — which briefly dismisses the
 /// menu-bar window — does not lose what you were typing.
 struct NewSessionDraft: Codable, Equatable {
-    enum BetaMode: String, Codable, CaseIterable, Identifiable {
+    /// What kind of target the other endpoint is.
+    enum TargetKind: String, Codable, CaseIterable, Identifiable {
         case remote
         case local
         case custom
@@ -27,16 +28,66 @@ struct NewSessionDraft: Codable, Equatable {
         }
     }
 
+    /// User-facing sync modes. Mutagen only offers "local wins" resolution, so
+    /// "remote wins" is expressed by creating the session with the remote side
+    /// listed first.
+    enum ModeChoice: String, Codable, CaseIterable, Identifiable {
+        case twoWaySafe
+        case twoWayLocalWins
+        case twoWayRemoteWins
+        case oneWaySafe
+        case oneWayReplica
+
+        var id: String { rawValue }
+
+        var title: String {
+            switch self {
+            case .twoWaySafe: return "Two-way (safe)"
+            case .twoWayLocalWins: return "Two-way (local wins)"
+            case .twoWayRemoteWins: return "Two-way (remote wins)"
+            case .oneWaySafe: return "One-way (safe)"
+            case .oneWayReplica: return "One-way (replica)"
+            }
+        }
+
+        var detail: String {
+            switch self {
+            case .twoWaySafe:
+                return "Changes flow in both directions. If the same file is edited on both sides, it is left as a conflict for you to resolve."
+            case .twoWayLocalWins:
+                return "Changes flow in both directions, but conflicts are resolved automatically in favour of the local side."
+            case .twoWayRemoteWins:
+                return "Changes flow in both directions, but conflicts are resolved automatically in favour of the remote side."
+            case .oneWaySafe:
+                return "Only the local side propagates to the remote. Remote-only edits are left untouched and can become conflicts."
+            case .oneWayReplica:
+                return "The remote is made an exact replica of the local side. Remote-only files are overwritten or deleted — use with care."
+            }
+        }
+
+        var mutagenMode: String {
+            switch self {
+            case .twoWaySafe: return "two-way-safe"
+            case .twoWayLocalWins, .twoWayRemoteWins: return "two-way-resolved"
+            case .oneWaySafe: return "one-way-safe"
+            case .oneWayReplica: return "one-way-replica"
+            }
+        }
+
+        /// "Remote wins" is implemented by listing the remote endpoint first.
+        var swapsEndpoints: Bool { self == .twoWayRemoteWins }
+    }
+
     var name: String = ""
-    var alpha: String = ""
-    var betaMode: BetaMode = .remote
-    var betaLocal: String = ""
+    var localPath: String = ""
+    var targetKind: TargetKind = .remote
+    var localTargetPath: String = ""
     var sshUser: String = "admin"
     var sshHost: String = ""
     var sshPort: String = ""
     var sshPath: String = ""
-    var customBeta: String = ""
-    var mode: String = SyncMode.twoWaySafe.rawValue
+    var customTarget: String = ""
+    var modeChoice: ModeChoice = .twoWaySafe
     var ignoreText: String = ""
     var ignoreVCS: Bool = true
     var ignoreBuildArtifacts: Bool = false
@@ -49,36 +100,55 @@ struct NewSessionDraft: Codable, Equatable {
     init() {}
 
     init(from definition: SavedSession) {
+        // Sessions can be stored local-first (normal) or remote-first (remote
+        // wins), so work out the orientation before filling the fields.
+        let alphaIsLocal = Self.looksLocal(definition.alpha)
+        let betaIsLocal = Self.looksLocal(definition.beta)
+        var local = definition.alpha
+        var target = definition.beta
+        var remoteFirst = false
+        if !alphaIsLocal && betaIsLocal {
+            local = definition.beta
+            target = definition.alpha
+            remoteFirst = true
+        }
+
         name = definition.name
-        alpha = definition.alpha
-        mode = definition.mode
-        ignoreVCS = definition.ignoreVCS
+        localPath = local
+
+        if Self.looksLocal(target) {
+            targetKind = .local
+            localTargetPath = target
+        } else if target.hasPrefix("ssh://") || target.contains("@") {
+            if parseSSH(target) {
+                targetKind = .remote
+            } else {
+                targetKind = .custom
+                customTarget = target
+            }
+        } else {
+            targetKind = .custom
+            customTarget = target
+        }
+
+        switch definition.mode {
+        case "two-way-resolved":
+            modeChoice = remoteFirst ? .twoWayRemoteWins : .twoWayLocalWins
+        case "one-way-safe":
+            modeChoice = .oneWaySafe
+        case "one-way-replica":
+            modeChoice = .oneWayReplica
+        default:
+            modeChoice = .twoWaySafe
+        }
 
         let vcs = Set(Self.vcsIgnores)
         let build = Set(Self.buildIgnores)
         ignoreText = definition.ignorePaths
             .filter { !vcs.contains($0) && !build.contains($0) }
             .joined(separator: "\n")
-        if definition.ignorePaths.contains(where: { vcs.contains($0) }) {
-            ignoreVCS = true
-        }
-        if definition.ignorePaths.contains(where: { build.contains($0) }) {
-            ignoreBuildArtifacts = true
-        }
-
-        let beta = definition.beta
-        if beta.hasPrefix("/") || beta.hasPrefix("~") {
-            betaMode = .local
-            betaLocal = beta
-        } else if beta.hasPrefix("ssh://") || beta.contains("@") {
-            if !parseSSH(beta) {
-                betaMode = .custom
-                customBeta = beta
-            }
-        } else {
-            betaMode = .custom
-            customBeta = beta
-        }
+        ignoreVCS = definition.ignoreVCS || definition.ignorePaths.contains { vcs.contains($0) }
+        ignoreBuildArtifacts = definition.ignorePaths.contains { build.contains($0) }
     }
 
     // MARK: - Derived values
@@ -101,12 +171,13 @@ struct NewSessionDraft: Codable, Equatable {
         return patterns.filter { seen.insert($0).inserted }
     }
 
-    var resolvedBeta: String {
-        switch betaMode {
+    /// The other endpoint, as a URL.
+    var resolvedTarget: String {
+        switch targetKind {
         case .local:
-            return PathUtil.expand(betaLocal)
+            return PathUtil.expand(localTargetPath)
         case .custom:
-            return customBeta.trimmingCharacters(in: .whitespacesAndNewlines)
+            return customTarget.trimmingCharacters(in: .whitespacesAndNewlines)
         case .remote:
             let host = sshHost.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !host.isEmpty else { return "" }
@@ -122,25 +193,40 @@ struct NewSessionDraft: Codable, Equatable {
         }
     }
 
+    /// True when the chosen mode should list the remote endpoint first.
+    var swapsEndpoints: Bool {
+        modeChoice.swapsEndpoints && !Self.looksLocal(resolvedTarget) && !resolvedTarget.isEmpty
+    }
+
     var isValid: Bool {
         !name.trimmingCharacters(in: .whitespaces).isEmpty
-            && !PathUtil.expand(alpha).isEmpty
-            && !resolvedBeta.isEmpty
+            && !PathUtil.expand(localPath).isEmpty
+            && !resolvedTarget.isEmpty
     }
 
     func toSavedSession() -> SavedSession {
+        let local = PathUtil.expand(localPath)
+        let target = resolvedTarget
+
         var ignores = customIgnorePaths
         if ignoreBuildArtifacts { ignores += Self.buildIgnores }
         var seen = Set<String>()
         ignores = ignores.filter { seen.insert($0).inserted }
+
         return SavedSession(
             name: name.trimmingCharacters(in: .whitespaces),
-            alpha: PathUtil.expand(alpha),
-            beta: resolvedBeta,
-            mode: mode,
+            alpha: swapsEndpoints ? target : local,
+            beta: swapsEndpoints ? local : target,
+            mode: modeChoice.mutagenMode,
             ignorePaths: ignores,
             ignoreVCS: ignoreVCS
         )
+    }
+
+    static func looksLocal(_ value: String) -> Bool {
+        let trimmed = value.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return false }
+        return trimmed.hasPrefix("/") || trimmed.hasPrefix("~") || trimmed.hasPrefix(".")
     }
 
     // MARK: - SSH parsing

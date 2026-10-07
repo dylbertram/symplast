@@ -48,36 +48,3 @@ struct SavedSession: Codable, Identifiable, Hashable {
         "\(MutagenEndpoint.abbreviate(alpha, keepLast: 2)) → \(beta)"
     }
 }
-
-/// User-facing sync modes supported by `mutagen sync create`.
-enum SyncMode: String, CaseIterable, Identifiable {
-    case twoWaySafe = "two-way-safe"
-    case twoWayResolved = "two-way-resolved"
-    case oneWaySafe = "one-way-safe"
-    case oneWayReplica = "one-way-replica"
-
-    var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .twoWaySafe: return "Two-way (safe)"
-        case .twoWayResolved: return "Two-way (alpha wins)"
-        case .oneWaySafe: return "One-way (safe)"
-        case .oneWayReplica: return "One-way (replica)"
-        }
-    }
-
-    /// Explanation shown beneath the picker for the selected mode.
-    var detail: String {
-        switch self {
-        case .twoWaySafe:
-            return "Changes flow in both directions. If both sides edit the same file, it is left as a conflict for you to resolve."
-        case .twoWayResolved:
-            return "Changes flow in both directions, but conflicts are resolved automatically in favour of the local (alpha) side."
-        case .oneWaySafe:
-            return "Only the local (alpha) side propagates to the remote (beta). Remote-only edits are left untouched and can become conflicts."
-        case .oneWayReplica:
-            return "The remote (beta) is made an exact replica of the local (alpha). Remote-only files are overwritten or deleted — use with care."
-        }
-    }
-}

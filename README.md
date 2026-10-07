@@ -19,8 +19,9 @@ Mutagen's internals, so it stays compatible across Mutagen versions.
 - **Disconnected monitoring**: unreachable endpoints are highlighted in red and
   the menu bar icon changes so you notice without opening the menu.
 - **Create & save sessions**: pick a local folder plus an SSH target, a local
-  folder, or a custom URL; choose a sync mode (with an explanation of each),
-  ignore rules and VCS/build-output handling.
+  folder, or a custom URL; choose a sync mode (each with an explanation,
+  including a "two-way (remote wins)" option), ignore rules and VCS/build-output
+  handling.
 - **Edit sessions**: change a session's name, folders, mode or ignores; Mutagen
   has no in-place edit, so MutagenDock terminates and recreates it for you.
 - **Saved definitions**: every session you create (and every existing session

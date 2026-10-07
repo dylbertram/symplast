@@ -109,11 +109,11 @@ struct SessionRowView: View {
                 Button("Reveal local folder") {
                     NSWorkspace.shared.reveal(session.alpha.isLocal ? session.alpha.path ?? "" : session.beta.path ?? "")
                 }
-                Button("Copy alpha path") {
-                    copyToPasteboard(session.alpha.displayName)
+                Button("Copy local path") {
+                    copyToPasteboard(session.alpha.isLocal ? session.alpha.displayName : session.beta.displayName)
                 }
-                Button("Copy beta path") {
-                    copyToPasteboard(session.beta.displayName)
+                Button("Copy remote path") {
+                    copyToPasteboard(session.alpha.isLocal ? session.beta.displayName : session.alpha.displayName)
                 }
                 Divider()
                 Button("Reset history") {
