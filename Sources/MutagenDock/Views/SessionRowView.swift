@@ -3,7 +3,6 @@ import SwiftUI
 struct SessionRowView: View {
     @ObservedObject var store: AppStore
     let session: MutagenSession
-    @AppStorage("debugLayout") private var debugLayout = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
@@ -33,9 +32,7 @@ struct SessionRowView: View {
                     .lineLimit(1)
                     .truncationMode(.middle)
                     .help(session.alpha.displayName)
-                Image(systemName: "arrow.right")
-                    .font(.system(size: 8))
-                    .foregroundStyle(.tertiary)
+                SyncModeIndicator(mode: session.mode, alphaIsLocal: session.alpha.isLocal)
                 Text(session.beta.shortDisplayName)
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
@@ -63,9 +60,9 @@ struct SessionRowView: View {
                 }
             }
         }
-        // The text fills the full width (a VStack proposes its width to every
-        // child), and the controls are anchored to the trailing edge with an
-        // overlay so their position never depends on how space is distributed.
+        // The text fills the full width, and the controls are pinned to the
+        // trailing edge with an intrinsic-size overlay so their position never
+        // depends on how the stack distributes space.
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, 8)
         .padding(.leading, 10)
@@ -77,13 +74,6 @@ struct SessionRowView: View {
                 .padding(.top, 7)
                 .padding(.trailing, 10)
         }
-        .overlay {
-            if debugLayout { Rectangle().stroke(Color.red, lineWidth: 1) }
-        }
-        .coordinateSpace(name: "row")
-        .background(GeometryReader { proxy in
-            Color.clear.preference(key: RowWidthPreferenceKey.self, value: proxy.size.width)
-        })
         .contentShape(Rectangle())
     }
 
@@ -149,15 +139,6 @@ struct SessionRowView: View {
             .menuIndicator(.hidden)
             .help("More actions")
         }
-        .overlay {
-            if debugLayout { Rectangle().stroke(Color.green, lineWidth: 1) }
-        }
-        .background(GeometryReader { proxy in
-            Color.clear.preference(
-                key: ControlXPreferenceKey.self,
-                value: proxy.frame(in: .named("row")).minX
-            )
-        })
         .foregroundStyle(.secondary)
     }
 
@@ -178,31 +159,6 @@ struct SessionRowView: View {
         if alert.runModal() == .alertFirstButtonReturn {
             store.terminate(session)
         }
-    }
-}
-
-/// Reports the laid-out row width so the panel can show it in debug mode.
-struct RowWidthPreferenceKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = max(value, nextValue())
-    }
-}
-
-/// Reports the laid-out panel width for debug mode.
-struct PanelWidthPreferenceKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = max(value, nextValue())
-    }
-}
-
-/// Reports the x-position of the row's controls so debug mode can show whether
-/// they are actually pushed to the trailing edge.
-struct ControlXPreferenceKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = max(value, nextValue())
     }
 }
 

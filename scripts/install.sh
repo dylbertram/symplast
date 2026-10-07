@@ -18,5 +18,9 @@ LSREGISTER="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchS
 "$LSREGISTER" -u "$ROOT/build/$APP_NAME.app" >/dev/null 2>&1 || true
 rm -rf "$ROOT/build/$APP_NAME.app"
 
+# Re-register the installed app so Spotlight/Finder pick up the icon.
+"$LSREGISTER" -f "$DEST" >/dev/null 2>&1 || true
+touch "$DEST"
+
 echo "==> Launching"
 open "$DEST"
