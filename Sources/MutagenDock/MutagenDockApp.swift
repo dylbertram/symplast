@@ -62,11 +62,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func updateStatusItem() {
         guard let button = statusItem?.button else { return }
-        let symbol = store.worstState.menuBarSymbol
-        if let image = NSImage(systemSymbolName: symbol, accessibilityDescription: "MutagenDock") {
-            image.isTemplate = true
+
+        if let image = BrandAssets.menuBarImage(height: 18) {
             button.image = image
+        } else if let fallback = NSImage(systemSymbolName: store.worstState.menuBarSymbol,
+                                         accessibilityDescription: "MutagenDock") {
+            fallback.isTemplate = true
+            button.image = fallback
         }
+
+        // The logo is a template image, so tint it to signal state.
+        switch store.worstState {
+        case .disconnected, .error:
+            button.contentTintColor = .systemRed
+        case .paused:
+            button.contentTintColor = .systemOrange
+        default:
+            button.contentTintColor = nil
+        }
+
         if store.settings.showCount, !store.sessions.isEmpty {
             button.title = " \(store.sessions.count)"
         } else {

@@ -71,8 +71,7 @@ struct MenuContentView: View {
 
     private var header: some View {
         HStack(spacing: 8) {
-            Image(systemName: "arrow.triangle.2.circlepath")
-                .foregroundStyle(store.worstState.color)
+            BrandLogo(size: 16, color: store.worstState.color)
             VStack(alignment: .leading, spacing: 0) {
                 Text("MutagenDock")
                     .font(.system(size: 13, weight: .semibold))

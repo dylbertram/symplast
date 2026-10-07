@@ -10,8 +10,11 @@ Mutagen's internals, so it stays compatible across Mutagen versions.
 
 ## Features
 
-- **Menu bar icon** that reflects the overall health of your sessions
-  (watching ●, syncing ↻, paused ⏸, disconnected ⚠). Shows the session count.
+- **Menu bar icon**: the Mutagen logo, tinted to reflect overall health
+  (red when disconnected/errored, orange when paused). Shows the session count.
+- **Logo pipeline**: `logo_light.svg` is rasterized to a transparent PNG
+  (`scripts/make-logo.swift`, run automatically by the build) and used as a
+  macOS template image.
 - **Live session list** with per-session status, local ⇄ remote paths and
   file/size counts, refreshed on a configurable interval.
 - **Start / stop**: pause and resume any session inline.
