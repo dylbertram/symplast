@@ -6,72 +6,76 @@ struct SessionRowView: View {
     @AppStorage("debugLayout") private var debugLayout = false
 
     var body: some View {
-        HStack(alignment: .top, spacing: 10) {
-            StatusDot(state: session.state)
-                .padding(.top, 5)
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(spacing: 8) {
+                StatusDot(state: session.state)
+                Text(session.name)
+                    .font(.system(size: 13, weight: .semibold))
+                    .lineLimit(1)
+                    .layoutPriority(1)
+                Text(session.state.label)
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(session.state.color)
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 1)
+                    .background(session.state.color.opacity(0.14), in: Capsule())
+                    .fixedSize()
+                Spacer(minLength: 0)
+            }
 
-            VStack(alignment: .leading, spacing: 3) {
-                HStack(spacing: 6) {
-                    Text(session.name)
-                        .font(.system(size: 13, weight: .semibold))
-                        .lineLimit(1)
-                        .layoutPriority(1)
-                    Text(session.state.label)
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundStyle(session.state.color)
-                        .padding(.horizontal, 5)
-                        .padding(.vertical, 1)
-                        .background(session.state.color.opacity(0.14), in: Capsule())
-                        .fixedSize()
-                }
+            HStack(spacing: 4) {
+                Image(systemName: session.alpha.isLocal ? "laptopcomputer" : "cloud")
+                    .font(.system(size: 9))
+                    .foregroundStyle(.secondary)
+                Text(session.alpha.shortDisplayName)
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .help(session.alpha.displayName)
+                Image(systemName: "arrow.right")
+                    .font(.system(size: 8))
+                    .foregroundStyle(.tertiary)
+                Text(session.beta.shortDisplayName)
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .help(session.beta.displayName)
+            }
 
-                HStack(spacing: 4) {
-                    Image(systemName: session.alpha.isLocal ? "laptopcomputer" : "cloud")
-                        .font(.system(size: 9))
-                        .foregroundStyle(.secondary)
-                    Text(session.alpha.shortDisplayName)
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                        .help(session.alpha.displayName)
-                    Image(systemName: "arrow.right")
-                        .font(.system(size: 8))
-                        .foregroundStyle(.tertiary)
-                    Text(session.beta.shortDisplayName)
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                        .help(session.beta.displayName)
-                }
-
-                if !session.isPaused && !session.isConnected {
-                    Text(disconnectedDetail)
+            if !session.isPaused && !session.isConnected {
+                Text(disconnectedDetail)
+                    .font(.system(size: 10))
+                    .foregroundStyle(.red.opacity(0.85))
+                    .lineLimit(1)
+            } else {
+                let summary = Format.contents(
+                    directories: session.alpha.directories,
+                    files: session.alpha.files,
+                    size: session.alpha.totalFileSize
+                )
+                if !summary.isEmpty {
+                    Text(summary)
                         .font(.system(size: 10))
-                        .foregroundStyle(.red.opacity(0.85))
+                        .foregroundStyle(.tertiary)
                         .lineLimit(1)
-                } else {
-                    let summary = Format.contents(
-                        directories: session.alpha.directories,
-                        files: session.alpha.files,
-                        size: session.alpha.totalFileSize
-                    )
-                    if !summary.isEmpty {
-                        Text(summary)
-                            .font(.system(size: 10))
-                            .foregroundStyle(.tertiary)
-                            .lineLimit(1)
-                    }
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-
-            trailingControls
         }
-        .padding(.vertical, 8)
-        .padding(.horizontal, 10)
+        // The text fills the full width (a VStack proposes its width to every
+        // child), and the controls are anchored to the trailing edge with an
+        // overlay so their position never depends on how space is distributed.
         .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, 8)
+        .padding(.leading, 10)
+        .padding(.trailing, 84)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .overlay(alignment: .topTrailing) {
+            trailingControls
+                .padding(.top, 7)
+                .padding(.trailing, 10)
+        }
         .overlay {
             if debugLayout { Rectangle().stroke(Color.red, lineWidth: 1) }
         }
@@ -178,6 +182,14 @@ struct SessionRowView: View {
 
 /// Reports the laid-out row width so the panel can show it in debug mode.
 struct RowWidthPreferenceKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
+}
+
+/// Reports the laid-out panel width for debug mode.
+struct PanelWidthPreferenceKey: PreferenceKey {
     static var defaultValue: CGFloat = 0
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
         value = max(value, nextValue())
