@@ -2,6 +2,8 @@ import SwiftUI
 
 struct MenuContentView: View {
     @ObservedObject var store: AppStore
+    @State private var measuredRowWidth: CGFloat = 0
+    @AppStorage("debugLayout") private var debugLayout = false
 
     var body: some View {
         Group {
@@ -37,16 +39,17 @@ struct MenuContentView: View {
             Divider()
             footer
         }
+        .onPreferenceChange(RowWidthPreferenceKey.self) { measuredRowWidth = $0 }
     }
 
     @ViewBuilder
     private var content: some View {
         if store.sessions.isEmpty && store.stoppedDefinitions.isEmpty {
             emptyState
-                .frame(maxHeight: .infinity)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 0) {
+                VStack(alignment: .leading, spacing: 0) {
                     if !store.sessions.isEmpty {
                         sectionHeader("Sessions")
                         ForEach(store.sessions) { session in
@@ -64,6 +67,9 @@ struct MenuContentView: View {
                         }
                     }
                 }
+                // Pin the content to the panel width so rows always fill the
+                // width instead of sizing to their (narrow) intrinsic width.
+                .frame(width: Layout.panelWidth, alignment: .leading)
             }
             .frame(maxHeight: .infinity)
         }
@@ -102,6 +108,9 @@ struct MenuContentView: View {
     }
 
     private var headerSubtitle: String {
+        if debugLayout {
+            return "debug · panel=\(Int(Layout.panelWidth)) row=\(Int(measuredRowWidth))"
+        }
         if !store.daemonAvailable { return "Daemon not running" }
         if store.sessions.isEmpty { return "No active sessions" }
         let connected = store.sessions.count - store.disconnectedCount
@@ -224,5 +233,6 @@ struct StoppedRowView: View {
         }
         .padding(.vertical, 6)
         .padding(.horizontal, 10)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
