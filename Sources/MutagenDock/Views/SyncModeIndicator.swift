@@ -2,13 +2,13 @@ import SwiftUI
 
 /// The sync-direction indicator shown between the two endpoints.
 ///
-/// - Two-way (safe): both arrows, no priority.
-/// - Two-way (resolved): both arrows with the *alpha* side (the left endpoint)
-///   bolded, since Mutagen resolves conflicts in favour of alpha. Because a
-///   "remote wins" session is stored with the remote listed first, the bolded
-///   side is always the winning side.
+/// - Two-way (safe): the bidirectional arrow.
+/// - Two-way (resolved): the same bidirectional arrow plus a trophy on the side
+///   that wins conflicts. Mutagen resolves in favour of the *alpha* side, which
+///   is always the left-hand endpoint here (a "remote wins" session is stored
+///   with the remote listed first).
 /// - One-way (safe): a single arrow from alpha to beta.
-/// - One-way (replica): a single, bolder arrow (beta is overwritten).
+/// - One-way (replica): a single, bolder orange arrow (beta is overwritten).
 struct SyncModeIndicator: View {
     let mode: String?
     let alphaIsLocal: Bool
@@ -17,14 +17,11 @@ struct SyncModeIndicator: View {
         Group {
             switch mode {
             case "two-way-safe":
-                Image(systemName: "arrow.left.arrow.right")
+                bidirectional
             case "two-way-resolved":
-                HStack(spacing: 1) {
-                    Image(systemName: "arrow.left")
-                        .fontWeight(.bold)
-                        .foregroundStyle(.primary)
-                    Image(systemName: "arrow.right")
-                        .foregroundStyle(.tertiary)
+                HStack(spacing: 2) {
+                    trophy
+                    bidirectional
                 }
             case "one-way-safe":
                 Image(systemName: "arrow.right")
@@ -33,13 +30,22 @@ struct SyncModeIndicator: View {
                     .fontWeight(.bold)
                     .foregroundStyle(.orange)
             default:
-                Image(systemName: "arrow.left.arrow.right")
+                bidirectional
             }
         }
         .font(.system(size: 9))
         .foregroundStyle(.secondary)
         .help(helpText)
         .accessibilityLabel(helpText)
+    }
+
+    private var bidirectional: some View {
+        Image(systemName: "arrow.left.arrow.right")
+    }
+
+    private var trophy: some View {
+        Image(systemName: "trophy.fill")
+            .foregroundStyle(.yellow)
     }
 
     private var alphaSideName: String { alphaIsLocal ? "local" : "remote" }
@@ -50,7 +56,7 @@ struct SyncModeIndicator: View {
         case "two-way-safe":
             return "Two-way sync: changes flow both ways; conflicts are left for you to resolve."
         case "two-way-resolved":
-            return "Two-way sync: conflicts are resolved in favour of the \(alphaSideName) side."
+            return "Two-way sync: conflicts are resolved in favour of the \(alphaSideName) side (trophy)."
         case "one-way-safe":
             return "One-way sync: only the \(alphaSideName) side propagates; the \(betaSideName) side is left alone."
         case "one-way-replica":
