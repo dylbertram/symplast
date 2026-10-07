@@ -14,12 +14,14 @@ struct SessionRowView: View {
                     Text(session.name)
                         .font(.system(size: 13, weight: .semibold))
                         .lineLimit(1)
+                        .layoutPriority(1)
                     Text(session.state.label)
                         .font(.system(size: 10, weight: .medium))
                         .foregroundStyle(session.state.color)
                         .padding(.horizontal, 5)
                         .padding(.vertical, 1)
                         .background(session.state.color.opacity(0.14), in: Capsule())
+                        .fixedSize()
                 }
 
                 HStack(spacing: 4) {

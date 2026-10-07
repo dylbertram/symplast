@@ -90,6 +90,14 @@ final class AppStore: ObservableObject {
         busySessionIDs.contains(session.id)
     }
 
+    #if DEBUG
+    /// Test/preview hook: inject sessions without touching the daemon.
+    func setPreviewSessions(_ value: [MutagenSession]) {
+        sessions = value
+        daemonAvailable = true
+    }
+    #endif
+
     // MARK: - Refresh
 
     func refresh() async {

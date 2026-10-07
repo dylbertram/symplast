@@ -33,13 +33,22 @@ struct MutagenEndpoint: Decodable {
         return "\(prefix)\(portPart)\(hostPart):\(path ?? "")"
     }
 
-    /// Compact form that keeps only the tail of long paths.
+    /// Full form with the home directory shortened, letting the UI truncate the
+    /// middle only if there genuinely isn't room.
     var shortDisplayName: String {
         if isLocal {
-            return Self.abbreviate(path ?? "?", keepLast: 2)
+            return Self.homeAbbreviated(path ?? "?")
         }
-        let host = host ?? "?"
-        return "\(host):\(Self.abbreviate(path ?? "", keepLast: 1))"
+        let prefix = user.map { "\($0)@" } ?? ""
+        return "\(prefix)\(host ?? "?"):\(path ?? "")"
+    }
+
+    static func homeAbbreviated(_ path: String) -> String {
+        let home = NSHomeDirectory()
+        if path.hasPrefix(home) {
+            return "~" + path.dropFirst(home.count)
+        }
+        return path
     }
 
     /// Lossless-ish URL suitable for re-creating a session.

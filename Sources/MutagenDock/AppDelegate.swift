@@ -112,19 +112,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         case .newSession, .settings:
             return 560
         case .list:
-            let sessionCount = store.sessions.count
             let savedCount = store.stoppedDefinitions.count
-            if sessionCount + savedCount == 0 { return 240 }
+            if store.sessions.isEmpty && savedCount == 0 { return 236 }
 
             var height: CGFloat = 40 + 40 + 2 // header + footer + dividers
-            if sessionCount > 0 { height += 24 }
-            if savedCount > 0 { height += 26 }
-            height += CGFloat(sessionCount) * 78
-            height += CGFloat(savedCount) * 62
-            height += 10 // avoid a scroll indicator for snug content
+            if !store.sessions.isEmpty { height += 22 } // section header
+            if savedCount > 0 { height += 24 }
+            for session in store.sessions {
+                switch session.state {
+                case .paused: height += 58
+                case .disconnected, .error: height += 86
+                default: height += 72
+                }
+            }
+            height += CGFloat(savedCount) * 56
+            height += 6 // small breathing room
             if !store.daemonAvailable { height += 96 }
             if store.lastError != nil && store.daemonAvailable { height += 34 }
-            return min(620, max(190, height))
+            return min(620, max(180, height))
         }
     }
 
