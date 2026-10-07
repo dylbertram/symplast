@@ -46,6 +46,7 @@ struct MenuContentView: View {
     private var content: some View {
         if store.sessions.isEmpty && store.stoppedDefinitions.isEmpty {
             emptyState
+                .frame(height: Self.scrollHeight(rowCount: 0))
         } else {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 0) {
@@ -67,8 +68,16 @@ struct MenuContentView: View {
                     }
                 }
             }
-            .frame(maxHeight: 420)
+            .frame(height: Self.scrollHeight(rowCount: store.sessions.count + store.stoppedDefinitions.count))
         }
+    }
+
+    /// `MenuBarExtra` gives a `ScrollView` no intrinsic height, so the content
+    /// area is sized explicitly: grows with the number of rows, clamped so it
+    /// never collapses to a sliver or overflows the screen.
+    static func scrollHeight(rowCount: Int) -> CGFloat {
+        let estimated = CGFloat(rowCount) * 68 + 48
+        return min(460, max(170, estimated))
     }
 
     private var header: some View {
