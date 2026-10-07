@@ -23,4 +23,7 @@ rm -rf "$ROOT/build/$APP_NAME.app"
 touch "$DEST"
 
 echo "==> Launching"
+# `open` only activates an existing instance, so quit any running copy first.
+pkill -f "$APP_NAME.app/Contents/MacOS/$APP_NAME" >/dev/null 2>&1 || true
+sleep 1
 open "$DEST"
