@@ -2,22 +2,19 @@ import SwiftUI
 
 struct MenuContentView: View {
     @ObservedObject var store: AppStore
-    @State private var route: Route = .list
-
-    enum Route { case list, newSession, settings }
 
     var body: some View {
         Group {
-            switch route {
+            switch store.route {
             case .list:
                 listView
             case .newSession:
-                NewSessionView(store: store) { route = .list }
+                NewSessionView(store: store)
             case .settings:
-                SettingsView(store: store) { route = .list }
+                SettingsView(store: store)
             }
         }
-        .frame(width: 380)
+        .frame(width: Layout.panelWidth)
     }
 
     // MARK: - List
@@ -46,7 +43,7 @@ struct MenuContentView: View {
     private var content: some View {
         if store.sessions.isEmpty && store.stoppedDefinitions.isEmpty {
             emptyState
-                .frame(height: Self.scrollHeight(rowCount: 0))
+                .frame(height: Layout.contentHeight)
         } else {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 0) {
@@ -68,16 +65,8 @@ struct MenuContentView: View {
                     }
                 }
             }
-            .frame(height: Self.scrollHeight(rowCount: store.sessions.count + store.stoppedDefinitions.count))
+            .frame(height: Layout.contentHeight)
         }
-    }
-
-    /// `MenuBarExtra` gives a `ScrollView` no intrinsic height, so the content
-    /// area is sized explicitly: grows with the number of rows, clamped so it
-    /// never collapses to a sliver or overflows the screen.
-    static func scrollHeight(rowCount: Int) -> CGFloat {
-        let estimated = CGFloat(rowCount) * 68 + 48
-        return min(460, max(170, estimated))
     }
 
     private var header: some View {
@@ -103,14 +92,14 @@ struct MenuContentView: View {
             .buttonStyle(.borderless)
             .help("Refresh now")
 
-            Button { route = .settings } label: {
+            Button { store.route = .settings } label: {
                 Image(systemName: "gear")
             }
             .buttonStyle(.borderless)
             .help("Settings")
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 9)
+        .frame(height: 40)
     }
 
     private var headerSubtitle: String {
@@ -160,12 +149,12 @@ struct MenuContentView: View {
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
-            Button("New session…") { route = .newSession }
+            Button("New session…") { store.beginNewSession() }
                 .controlSize(.small)
                 .padding(.top, 2)
         }
         .padding(24)
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private func sectionHeader(_ title: String) -> some View {
@@ -180,7 +169,7 @@ struct MenuContentView: View {
     private var footer: some View {
         HStack {
             Button {
-                route = .newSession
+                store.beginNewSession()
             } label: {
                 Label("New session", systemImage: "plus")
                     .font(.system(size: 11))
@@ -197,7 +186,7 @@ struct MenuContentView: View {
             .foregroundStyle(.secondary)
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .frame(height: 40)
     }
 }
 
@@ -217,11 +206,13 @@ struct StoppedRowView: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                     .truncationMode(.middle)
+                    .help(definition.alpha)
             }
             Spacer(minLength: 4)
             Button("Start") { store.start(definition) }
                 .controlSize(.small)
             Menu {
+                Button("Edit…") { store.beginEdit(definition) }
                 Button("Forget definition", role: .destructive) {
                     store.forget(definition)
                 }

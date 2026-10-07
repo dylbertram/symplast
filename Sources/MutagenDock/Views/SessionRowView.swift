@@ -31,6 +31,7 @@ struct SessionRowView: View {
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                         .truncationMode(.middle)
+                        .help(session.alpha.displayName)
                     Image(systemName: "arrow.right")
                         .font(.system(size: 8))
                         .foregroundStyle(.tertiary)
@@ -39,6 +40,7 @@ struct SessionRowView: View {
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                         .truncationMode(.middle)
+                        .help(session.beta.displayName)
                 }
 
                 if session.isConnected {
@@ -102,6 +104,8 @@ struct SessionRowView: View {
             }
 
             Menu {
+                Button("Edit…") { store.beginEdit(session) }
+                Divider()
                 Button("Reveal local folder") {
                     NSWorkspace.shared.reveal(session.alpha.isLocal ? session.alpha.path ?? "" : session.beta.path ?? "")
                 }

@@ -2,7 +2,6 @@ import SwiftUI
 
 struct SettingsView: View {
     @ObservedObject var store: AppStore
-    var onDone: () -> Void
 
     @State private var pathDraft = ""
 
@@ -24,6 +23,7 @@ struct SettingsView: View {
                             .foregroundStyle(.tertiary)
                             .lineLimit(1)
                             .truncationMode(.middle)
+                            .help(store.detectedExecutablePath)
                         HStack(spacing: 6) {
                             Button("Apply") {
                                 store.settings.mutagenPath = pathDraft
@@ -79,22 +79,22 @@ struct SettingsView: View {
                 }
                 .padding(12)
             }
-            .frame(height: 430)
+            .frame(height: Layout.contentHeight)
             Divider()
             HStack {
                 Spacer()
-                Button("Done") { onDone() }
+                Button("Done") { store.route = .list }
                     .keyboardShortcut(.defaultAction)
             }
             .padding(.horizontal, 12)
-            .padding(.vertical, 9)
+            .frame(height: 40)
         }
         .onAppear { pathDraft = store.settings.mutagenPath }
     }
 
     private var header: some View {
         HStack {
-            Button { onDone() } label: {
+            Button { store.route = .list } label: {
                 Label("Back", systemImage: "chevron.left").font(.system(size: 11))
             }
             .buttonStyle(.borderless)
@@ -104,6 +104,6 @@ struct SettingsView: View {
             Label("Back", systemImage: "chevron.left").font(.system(size: 11)).opacity(0)
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 9)
+        .frame(height: 40)
     }
 }
