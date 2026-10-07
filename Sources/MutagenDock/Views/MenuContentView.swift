@@ -3,6 +3,7 @@ import SwiftUI
 struct MenuContentView: View {
     @ObservedObject var store: AppStore
     @State private var measuredRowWidth: CGFloat = 0
+    @State private var measuredControlX: CGFloat = 0
     @AppStorage("debugLayout") private var debugLayout = false
 
     var body: some View {
@@ -40,6 +41,7 @@ struct MenuContentView: View {
             footer
         }
         .onPreferenceChange(RowWidthPreferenceKey.self) { measuredRowWidth = $0 }
+        .onPreferenceChange(ControlXPreferenceKey.self) { measuredControlX = $0 }
     }
 
     @ViewBuilder
@@ -109,7 +111,7 @@ struct MenuContentView: View {
 
     private var headerSubtitle: String {
         if debugLayout {
-            return "debug · panel=\(Int(Layout.panelWidth)) row=\(Int(measuredRowWidth))"
+            return "debug · panel=\(Int(Layout.panelWidth)) row=\(Int(measuredRowWidth)) ctrlX=\(Int(measuredControlX))"
         }
         if !store.daemonAvailable { return "Daemon not running" }
         if store.sessions.isEmpty { return "No active sessions" }

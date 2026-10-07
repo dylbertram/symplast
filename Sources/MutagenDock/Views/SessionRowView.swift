@@ -3,6 +3,7 @@ import SwiftUI
 struct SessionRowView: View {
     @ObservedObject var store: AppStore
     let session: MutagenSession
+    @AppStorage("debugLayout") private var debugLayout = false
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
@@ -71,6 +72,10 @@ struct SessionRowView: View {
         .padding(.vertical, 8)
         .padding(.horizontal, 10)
         .frame(maxWidth: .infinity, alignment: .leading)
+        .overlay {
+            if debugLayout { Rectangle().stroke(Color.red, lineWidth: 1) }
+        }
+        .coordinateSpace(name: "row")
         .background(GeometryReader { proxy in
             Color.clear.preference(key: RowWidthPreferenceKey.self, value: proxy.size.width)
         })
@@ -139,6 +144,15 @@ struct SessionRowView: View {
             .menuIndicator(.hidden)
             .help("More actions")
         }
+        .overlay {
+            if debugLayout { Rectangle().stroke(Color.green, lineWidth: 1) }
+        }
+        .background(GeometryReader { proxy in
+            Color.clear.preference(
+                key: ControlXPreferenceKey.self,
+                value: proxy.frame(in: .named("row")).minX
+            )
+        })
         .foregroundStyle(.secondary)
     }
 
@@ -164,6 +178,15 @@ struct SessionRowView: View {
 
 /// Reports the laid-out row width so the panel can show it in debug mode.
 struct RowWidthPreferenceKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
+}
+
+/// Reports the x-position of the row's controls so debug mode can show whether
+/// they are actually pushed to the trailing edge.
+struct ControlXPreferenceKey: PreferenceKey {
     static var defaultValue: CGFloat = 0
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
         value = max(value, nextValue())
