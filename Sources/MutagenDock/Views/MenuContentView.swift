@@ -83,11 +83,11 @@ struct MenuContentView: View {
                     .foregroundStyle(.secondary)
             }
             Spacer()
-            if store.isRefreshing {
+            if store.isManualRefreshing {
                 ProgressView().controlSize(.small).scaleEffect(0.7)
             }
             Button {
-                Task { await store.refresh() }
+                Task { await store.refreshNow() }
             } label: {
                 Image(systemName: "arrow.clockwise")
             }
