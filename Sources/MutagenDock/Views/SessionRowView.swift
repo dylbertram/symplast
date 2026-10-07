@@ -70,6 +70,10 @@ struct SessionRowView: View {
         }
         .padding(.vertical, 8)
         .padding(.horizontal, 10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(GeometryReader { proxy in
+            Color.clear.preference(key: RowWidthPreferenceKey.self, value: proxy.size.width)
+        })
         .contentShape(Rectangle())
     }
 
@@ -155,6 +159,14 @@ struct SessionRowView: View {
         if alert.runModal() == .alertFirstButtonReturn {
             store.terminate(session)
         }
+    }
+}
+
+/// Reports the laid-out row width so the panel can show it in debug mode.
+struct RowWidthPreferenceKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
     }
 }
 
