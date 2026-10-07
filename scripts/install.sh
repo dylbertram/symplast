@@ -12,5 +12,11 @@ echo "==> Installing to $DEST"
 rm -rf "$DEST"
 cp -R "$ROOT/build/$APP_NAME.app" "$DEST"
 
+# Remove the build copy so LaunchServices doesn't register a second app with
+# the same bundle identifier (which shows up as a duplicate in Launchpad).
+LSREGISTER="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
+"$LSREGISTER" -u "$ROOT/build/$APP_NAME.app" >/dev/null 2>&1 || true
+rm -rf "$ROOT/build/$APP_NAME.app"
+
 echo "==> Launching"
 open "$DEST"
