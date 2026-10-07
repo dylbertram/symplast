@@ -73,6 +73,7 @@ struct SessionRowView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .overlay(alignment: .topTrailing) {
             trailingControls
+                .fixedSize()
                 .padding(.top, 7)
                 .padding(.trailing, 10)
         }
