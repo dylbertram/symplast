@@ -160,7 +160,7 @@ final class MutagenClient {
     // MARK: - Commands
 
     func listSessions() async throws -> [MutagenSession] {
-        let result = try await run(["sync", "list", "--template", "{{json .}}"])
+        let result = try await run(["sync", "list", "-l", "--template", "{{json .}}"])
         guard result.succeeded else {
             throw MutagenError.commandFailed(command: "sync list", message: result.bestMessage)
         }

@@ -80,6 +80,8 @@ struct MutagenSession: Decodable, Identifiable {
     let successfulCycles: Int?
     let creationTime: String?
     let creatingVersion: String?
+    /// Sync mode (e.g. `two-way-resolved`). Only present in `mutagen sync list -l`.
+    let mode: String?
 
     private let pausedValue: Bool?
     private let statusValue: String?
@@ -89,7 +91,7 @@ struct MutagenSession: Decodable, Identifiable {
 
     enum CodingKeys: String, CodingKey {
         case identifier, name, alpha, beta
-        case successfulCycles, creationTime, creatingVersion
+        case successfulCycles, creationTime, creatingVersion, mode
         case pausedValue = "paused"
         case statusValue = "status"
         case ignoreSpec = "ignore"

@@ -12,9 +12,12 @@ Mutagen's internals, so it stays compatible across Mutagen versions.
 
 - **Menu bar icon**: the Mutagen logo, tinted to reflect overall health
   (red when disconnected/errored, grey when paused). Shows the session count.
-- **Logo pipeline**: `logo_light.svg` is rasterized to a transparent PNG
-  (`scripts/make-logo.swift`, run automatically by the build) and used as a
-  macOS template image.
+- **Sync-direction indicator**: each row shows the session's real mode — `⇄`
+  (two-way safe), a two-way pair with the **winning side bolded** (two-way
+  resolved), `→` (one-way safe) or a bold orange `→` (one-way replica). The
+  mode is read from `mutagen sync list -l`.
+- **App icon**: a rounded tile with the Mutagen mark (`scripts/make-icon.swift`),
+  built into an `.icns` and shown in Spotlight/Finder.
 - **Live session list** with per-session status, local ⇄ remote paths and
   file/size counts, refreshed on a configurable interval.
 - **Start / stop**: pause and resume any session inline.
