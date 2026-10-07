@@ -12,10 +12,10 @@ Mutagen's internals, so it stays compatible across Mutagen versions.
 
 - **Menu bar icon**: the Mutagen logo, tinted to reflect overall health
   (red when disconnected/errored, grey when paused). Shows the session count.
-- **Sync-direction indicator**: each row shows the session's real mode — `⇄`
-  (two-way safe), a two-way pair with the **winning side bolded** (two-way
-  resolved), `→` (one-way safe) or a bold orange `→` (one-way replica). The
-  mode is read from `mutagen sync list -l`.
+- **Sync-direction indicator**: each row shows the session's real mode — a
+  bidirectional arrow `⇄` (two-way safe), the same arrow plus a **trophy on the
+  side that wins** conflicts (two-way resolved), `→` (one-way safe) or a bold
+  orange `→` (one-way replica). The mode is read from `mutagen sync list -l`.
 - **App icon**: a rounded tile with the Mutagen mark (`scripts/make-icon.swift`),
   built into an `.icns` and shown in Spotlight/Finder.
 - **Live session list** with per-session status, local ⇄ remote paths and
