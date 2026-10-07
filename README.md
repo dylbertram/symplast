@@ -11,7 +11,7 @@ Mutagen's internals, so it stays compatible across Mutagen versions.
 ## Features
 
 - **Menu bar icon**: the Mutagen logo, tinted to reflect overall health
-  (red when disconnected/errored, orange when paused). Shows the session count.
+  (red when disconnected/errored, grey when paused). Shows the session count.
 - **Logo pipeline**: `logo_light.svg` is rasterized to a transparent PNG
   (`scripts/make-logo.swift`, run automatically by the build) and used as a
   macOS template image.

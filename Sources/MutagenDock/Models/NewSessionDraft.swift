@@ -3,10 +3,9 @@ import Foundation
 /// Screens available in the menu panel.
 enum PanelRoute { case list, newSession, settings }
 
-/// A reusable fixed layout so the menu-bar window never needs to resize.
+/// A shared layout constant so the menu-bar window has a consistent width.
 enum Layout {
     static let panelWidth: CGFloat = 380
-    static let panelHeight: CGFloat = 520
 }
 
 /// Editable state for the New/Edit Session form. It lives in `AppStore` (not in
