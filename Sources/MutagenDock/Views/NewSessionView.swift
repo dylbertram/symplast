@@ -2,29 +2,11 @@ import SwiftUI
 
 struct NewSessionView: View {
     @ObservedObject var store: AppStore
-    var onDone: () -> Void
 
-    enum BetaMode: String, CaseIterable, Identifiable {
-        case remote = "Remote (SSH)"
-        case local = "Local folder"
-        case custom = "Custom URL"
-        var id: String { rawValue }
-    }
-
-    @State private var name = ""
-    @State private var alpha = ""
-    @State private var betaMode: BetaMode = .remote
-    @State private var betaLocal = ""
-    @State private var sshUser = NSUserName()
-    @State private var sshHost = ""
-    @State private var sshPort = ""
-    @State private var sshPath = ""
-    @State private var customBeta = ""
-    @State private var mode: SyncMode = .twoWaySafe
-    @State private var ignoreText = ""
-    @State private var ignoreVCS = true
     @State private var isCreating = false
     @State private var error: String?
+
+    private var isEditing: Bool { store.editingOriginalName != nil }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -33,19 +15,19 @@ struct NewSessionView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
                     field("Session name") {
-                        TextField("e.g. myproject-sync", text: $name)
+                        TextField("e.g. myproject-sync", text: $store.draft.name)
                             .textFieldStyle(.roundedBorder)
                     }
 
                     field("Local folder (alpha)") {
                         HStack(spacing: 6) {
-                            TextField("/Users/you/project", text: $alpha)
+                            TextField("/Users/you/project", text: $store.draft.alpha)
                                 .textFieldStyle(.roundedBorder)
                             Button("Choose…") {
-                                if let chosen = FolderPicker.choose(initialPath: alpha) {
-                                    alpha = chosen
-                                    if name.isEmpty {
-                                        name = URL(fileURLWithPath: chosen).lastPathComponent + "-sync"
+                                if let chosen = FolderPicker.choose(initialPath: store.draft.alpha) {
+                                    store.draft.alpha = chosen
+                                    if store.draft.name.isEmpty {
+                                        store.draft.name = URL(fileURLWithPath: chosen).lastPathComponent + "-sync"
                                     }
                                 }
                             }
@@ -55,8 +37,8 @@ struct NewSessionView: View {
 
                     field("Remote / target (beta)") {
                         VStack(alignment: .leading, spacing: 6) {
-                            Picker("", selection: $betaMode) {
-                                ForEach(BetaMode.allCases) { Text($0.rawValue).tag($0) }
+                            Picker("", selection: $store.draft.betaMode) {
+                                ForEach(NewSessionDraft.BetaMode.allCases) { Text($0.title).tag($0) }
                             }
                             .pickerStyle(.segmented)
                             .labelsHidden()
@@ -66,20 +48,24 @@ struct NewSessionView: View {
                     }
 
                     field("Sync mode") {
-                        Picker("", selection: $mode) {
-                            ForEach(SyncMode.allCases) { Text($0.title).tag($0) }
+                        Picker("", selection: $store.draft.mode) {
+                            ForEach(SyncMode.allCases) { Text($0.title).tag($0.rawValue) }
                         }
                         .labelsHidden()
                     }
 
                     field("Ignore paths (optional, one per line)") {
                         VStack(alignment: .leading, spacing: 4) {
-                            TextEditor(text: $ignoreText)
+                            TextEditor(text: $store.draft.ignoreText)
                                 .font(.system(size: 11, design: .monospaced))
                                 .frame(height: 52)
                                 .overlay(RoundedRectangle(cornerRadius: 5).stroke(Color.secondary.opacity(0.25)))
-                            Toggle("Ignore VCS directories (.git, .svn…)", isOn: $ignoreVCS)
+                            Toggle("Ignore VCS directories", isOn: $store.draft.ignoreVCS)
                                 .font(.system(size: 11))
+                            Text(blockedSummary)
+                                .font(.system(size: 10))
+                                .foregroundStyle(.tertiary)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
                     }
 
@@ -87,11 +73,12 @@ struct NewSessionView: View {
                         Text(error)
                             .font(.system(size: 11))
                             .foregroundStyle(.red)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                 }
                 .padding(12)
             }
-            .frame(height: 430)
+            .frame(height: Layout.contentHeight)
             Divider()
             footer
         }
@@ -99,38 +86,37 @@ struct NewSessionView: View {
 
     @ViewBuilder
     private var betaFields: some View {
-        switch betaMode {
+        switch store.draft.betaMode {
         case .remote:
             VStack(alignment: .leading, spacing: 6) {
-                HStack(spacing: 6) {
-                    TextField("user", text: $sshUser)
+                HStack(spacing: 5) {
+                    TextField("user", text: $store.draft.sshUser)
                         .textFieldStyle(.roundedBorder)
-                        .frame(width: 92)
+                        .frame(width: 82)
                     Text("@").foregroundStyle(.secondary)
-                    TextField("host", text: $sshHost)
+                    TextField("host", text: $store.draft.sshHost)
                         .textFieldStyle(.roundedBorder)
+                    Text(":").foregroundStyle(.secondary)
+                    TextField("22", text: $store.draft.sshPort)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 44)
                 }
-                HStack(spacing: 6) {
-                    TextField("port (optional)", text: $sshPort)
-                        .textFieldStyle(.roundedBorder)
-                        .frame(width: 92)
-                    TextField("/remote/path", text: $sshPath)
-                        .textFieldStyle(.roundedBorder)
-                }
+                TextField("/remote/path", text: $store.draft.sshPath)
+                    .textFieldStyle(.roundedBorder)
             }
         case .local:
             HStack(spacing: 6) {
-                TextField("/path/to/other/folder", text: $betaLocal)
+                TextField("/path/to/other/folder", text: $store.draft.betaLocal)
                     .textFieldStyle(.roundedBorder)
                 Button("Choose…") {
-                    if let chosen = FolderPicker.choose(initialPath: betaLocal) {
-                        betaLocal = chosen
+                    if let chosen = FolderPicker.choose(initialPath: store.draft.betaLocal) {
+                        store.draft.betaLocal = chosen
                     }
                 }
                 .controlSize(.small)
             }
         case .custom:
-            TextField("user@host:/path or ssh://user@host:22/path", text: $customBeta)
+            TextField("user@host:/path or ssh://user@host:22/path", text: $store.draft.customBeta)
                 .textFieldStyle(.roundedBorder)
         }
     }
@@ -138,23 +124,22 @@ struct NewSessionView: View {
     private var header: some View {
         HStack {
             Button {
-                onDone()
+                store.cancelForm()
             } label: {
                 Label("Back", systemImage: "chevron.left")
                     .font(.system(size: 11))
             }
             .buttonStyle(.borderless)
             Spacer()
-            Text("New session")
+            Text(isEditing ? "Edit session" : "New session")
                 .font(.system(size: 13, weight: .semibold))
             Spacer()
-            // Balances the header.
             Label("Back", systemImage: "chevron.left")
                 .font(.system(size: 11))
                 .opacity(0)
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 9)
+        .frame(height: 40)
     }
 
     private var footer: some View {
@@ -163,72 +148,36 @@ struct NewSessionView: View {
                 ProgressView().controlSize(.small).scaleEffect(0.7)
             }
             Spacer()
-            Button("Cancel") { onDone() }
+            Button("Cancel") { store.cancelForm() }
                 .keyboardShortcut(.cancelAction)
-            Button("Create & save") { create() }
+            Button(isEditing ? "Save changes" : "Create & save") { create() }
                 .keyboardShortcut(.defaultAction)
-                .disabled(isCreating || !isValid)
+                .disabled(isCreating || !store.draft.isValid)
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 9)
+        .frame(height: 40)
     }
 
-    private var isValid: Bool {
-        !name.trimmingCharacters(in: .whitespaces).isEmpty
-            && !PathUtil.expand(alpha).isEmpty
-            && !resolvedBeta.isEmpty
-    }
-
-    private var resolvedBeta: String {
-        switch betaMode {
-        case .local:
-            return PathUtil.expand(betaLocal)
-        case .custom:
-            return customBeta.trimmingCharacters(in: .whitespacesAndNewlines)
-        case .remote:
-            let host = sshHost.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !host.isEmpty else { return "" }
-            let user = sshUser.trimmingCharacters(in: .whitespacesAndNewlines)
-            let prefix = user.isEmpty ? "" : "\(user)@"
-            var path = sshPath.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !path.isEmpty && !path.hasPrefix("/") { path = "/" + path }
-            let port = sshPort.trimmingCharacters(in: .whitespacesAndNewlines)
-            if port.isEmpty {
-                return "\(prefix)\(host):\(path)"
-            }
-            return "ssh://\(prefix)\(host):\(port)\(path)"
-        }
+    private var blockedSummary: String {
+        let ignores = store.draft.effectiveIgnores
+        if ignores.isEmpty { return "Nothing is currently blocked." }
+        return "Blocks: " + ignores.joined(separator: ", ")
     }
 
     private func create() {
         error = nil
-        let alphaPath = PathUtil.expand(alpha)
+        let alphaPath = PathUtil.expand(store.draft.alpha)
         guard FileManager.default.fileExists(atPath: alphaPath) else {
             error = "The local folder doesn’t exist: \(alphaPath)"
             return
         }
-        let ignorePaths = ignoreText
-            .split(whereSeparator: \.isNewline)
-            .map { $0.trimmingCharacters(in: .whitespaces) }
-            .filter { !$0.isEmpty }
-
-        let definition = SavedSession(
-            name: name.trimmingCharacters(in: .whitespaces),
-            alpha: alphaPath,
-            beta: resolvedBeta,
-            mode: mode.rawValue,
-            ignorePaths: ignorePaths,
-            ignoreVCS: ignoreVCS
-        )
 
         isCreating = true
         Task {
-            let success = await store.createSession(definition)
+            let success = await store.saveDraft()
             isCreating = false
-            if success {
-                onDone()
-            } else {
-                error = store.lastError ?? "Could not create the session."
+            if !success {
+                error = store.lastError ?? "Could not save the session."
             }
         }
     }

@@ -9,6 +9,9 @@ final class AppStore: ObservableObject {
     @Published private(set) var isRefreshing = false
     @Published private(set) var busySessionIDs: Set<String> = []
     @Published var lastError: String?
+    @Published var route: PanelRoute = .list
+    @Published var draft = NewSessionDraft()
+    @Published private(set) var editingOriginalName: String?
     @Published var settings: AppSettings {
         didSet { persistSettings() }
     }
@@ -179,28 +182,29 @@ final class AppStore: ObservableObject {
         }
     }
 
-    // MARK: - Create / start / remove definitions
+    // MARK: - Create / start / edit / remove definitions
 
     /// Create (and start) a new Mutagen session, remembering the definition.
     func createSession(_ definition: SavedSession) async -> Bool {
-        guard let client else {
-            lastError = MutagenError.executableNotFound.errorDescription
-            return false
-        }
         do {
-            try await client.create(definition)
-            if let index = saved.firstIndex(where: { $0.name == definition.name }) {
-                saved[index] = definition
-            } else {
-                saved.append(definition)
-            }
-            persistSaved()
-            await refresh()
+            try await create(definition)
             return true
         } catch {
-            lastError = (error as? LocalizedError)?.errorDescription ?? String(describing: error)
+            lastError = errorMessage(error)
             return false
         }
+    }
+
+    private func create(_ definition: SavedSession) async throws {
+        guard let client else { throw MutagenError.executableNotFound }
+        try await client.create(definition)
+        if let index = saved.firstIndex(where: { $0.name == definition.name }) {
+            saved[index] = definition
+        } else {
+            saved.append(definition)
+        }
+        persistSaved()
+        await refresh()
     }
 
     /// Start a saved definition that has no live session by re-creating it.
@@ -211,6 +215,64 @@ final class AppStore: ObservableObject {
     func forget(_ definition: SavedSession) {
         saved.removeAll { $0.name == definition.name }
         persistSaved()
+    }
+
+    // MARK: - New / edit form
+
+    func beginNewSession() {
+        draft = NewSessionDraft()
+        editingOriginalName = nil
+        route = .newSession
+    }
+
+    func beginEdit(_ definition: SavedSession) {
+        draft = NewSessionDraft(from: definition)
+        editingOriginalName = definition.name
+        route = .newSession
+    }
+
+    func beginEdit(_ session: MutagenSession) {
+        let definition = saved.first { $0.name == session.name } ?? SavedSession(from: session)
+        beginEdit(definition)
+    }
+
+    func cancelForm() {
+        editingOriginalName = nil
+        route = .list
+    }
+
+    /// Create or update the session described by `draft`.
+    func saveDraft() async -> Bool {
+        let definition = draft.toSavedSession()
+        guard let client else {
+            lastError = MutagenError.executableNotFound.errorDescription
+            return false
+        }
+        do {
+            if let original = editingOriginalName {
+                let renamed = original != definition.name
+                // Mutagen has no in-place edit: terminate the existing session
+                // (same name or renamed) before recreating it.
+                if sessions.contains(where: { $0.name == original }) {
+                    try await client.terminate([original])
+                }
+                if renamed {
+                    saved.removeAll { $0.name == original }
+                    persistSaved()
+                }
+            }
+            try await create(definition)
+            editingOriginalName = nil
+            route = .list
+            return true
+        } catch {
+            lastError = errorMessage(error)
+            return false
+        }
+    }
+
+    private func errorMessage(_ error: Error) -> String {
+        (error as? LocalizedError)?.errorDescription ?? String(describing: error)
     }
 
     // MARK: - Daemon

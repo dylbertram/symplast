@@ -20,6 +20,8 @@ Mutagen's internals, so it stays compatible across Mutagen versions.
   the menu bar icon changes so you notice without opening the menu.
 - **Create & save sessions**: pick a local folder plus an SSH target, a local
   folder, or a custom URL; choose a sync mode, ignore rules and VCS handling.
+- **Edit sessions**: change a session's name, folders, mode or ignores; Mutagen
+  has no in-place edit, so MutagenDock terminates and recreates it for you.
 - **Saved definitions**: every session you create (and every existing session
   MutagenDock discovers) is remembered locally. Terminate a session and it moves
   to "Saved · not running" where you can start it again with one click.
@@ -56,8 +58,8 @@ and launches straight into the menu bar.
 
 - Click the menu bar icon to open the panel.
 - Hover a row's **pause** button to stop watching; press **play** to resume.
-- `⋯` on a row → reveal the local folder, copy paths, reset history, or
-  terminate.
+- `⋯` on a row → **edit** the session, reveal the local folder, copy paths,
+  reset history, or terminate.
 - **New session** → fill in a name, local folder, target, mode and ignore rules.
 - **Start** next to a saved definition recreates its Mutagen session.
 
