@@ -3,11 +3,6 @@ import Foundation
 /// Screens available in the menu panel.
 enum PanelRoute { case list, newSession, settings }
 
-/// A shared layout constant so the menu-bar window has a consistent width.
-enum Layout {
-    static let panelWidth: CGFloat = 404
-}
-
 /// Editable state for the New/Edit Session form. It lives in `AppStore` (not in
 /// the view) so that a folder-picker interaction — which briefly dismisses the
 /// menu-bar window — does not lose what you were typing.

@@ -108,29 +108,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// A snug, content-hugging height for the list, and roomier fixed heights
     /// for the forms. Assigned explicitly so the popover both grows and shrinks.
     private func currentPopoverHeight() -> CGFloat {
+        let height: CGFloat
         switch store.route {
-        case .newSession, .settings:
-            return 560
+        case .newSession:
+            height = Layout.formHeight
+        case .settings:
+            height = Layout.settingsHeight
         case .list:
-            let savedCount = store.stoppedDefinitions.count
-            if store.sessions.isEmpty && savedCount == 0 { return 236 }
-
-            var height: CGFloat = 40 + 40 + 2 // header + footer + dividers
-            if !store.sessions.isEmpty { height += 22 } // section header
-            if savedCount > 0 { height += 24 }
-            for session in store.sessions {
-                switch session.state {
-                case .paused: height += 58
-                case .disconnected, .error: height += 86
-                default: height += 72
-                }
-            }
-            height += CGFloat(savedCount) * 56
-            height += 6 // small breathing room
-            if !store.daemonAvailable { height += 96 }
-            if store.lastError != nil && store.daemonAvailable { height += 34 }
-            return min(620, max(180, height))
+            height = Layout.listHeight(
+                sessionCount: store.sessions.count,
+                savedCount: store.stoppedDefinitions.count,
+                daemonAvailable: store.daemonAvailable,
+                hasError: store.lastError != nil
+            )
         }
+        let screen = statusItem?.button?.window?.screen ?? NSScreen.main
+        return min(height, (screen?.visibleFrame.height ?? 900) - 40)
     }
 
     // MARK: - Mouse interaction

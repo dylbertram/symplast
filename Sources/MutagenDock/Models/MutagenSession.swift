@@ -153,14 +153,14 @@ enum SyncState: Equatable {
 
     var color: Color {
         switch self {
-        case .paused: return .orange
-        case .disconnected: return .red
-        case .connecting: return .yellow
-        case .scanning: return .yellow
+        case .paused: return .secondary
+        case .disconnected: return PanelColors.critical
+        case .connecting: return PanelColors.warning
+        case .scanning: return PanelColors.warning
         case .syncing: return .blue
-        case .watching: return .green
+        case .watching: return PanelColors.success
         case .idle: return Color.secondary
-        case .error: return .red
+        case .error: return PanelColors.critical
         }
     }
 

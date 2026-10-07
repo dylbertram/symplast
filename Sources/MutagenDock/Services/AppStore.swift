@@ -9,6 +9,7 @@ final class AppStore: ObservableObject {
     @Published private(set) var isRefreshing = false
     @Published private(set) var isManualRefreshing = false
     @Published private(set) var busySessionIDs: Set<String> = []
+    @Published private(set) var startingDefinitionNames: Set<String> = []
     @Published var lastError: String?
     @Published var route: PanelRoute = .list
     @Published var draft = NewSessionDraft()
@@ -19,13 +20,15 @@ final class AppStore: ObservableObject {
 
     private var client: MutagenClient?
     private var pollTask: Task<Void, Never>?
+    private let defaults: UserDefaults
 
     private let savedKey = "mutagenDock.savedSessions"
     private let settingsKey = "mutagenDock.settings"
 
-    init() {
-        self.settings = Self.loadSettings(key: settingsKey)
-        self.saved = Self.loadSaved(key: savedKey)
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+        self.settings = Self.loadSettings(key: settingsKey, defaults: defaults)
+        self.saved = Self.loadSaved(key: savedKey, defaults: defaults)
         self.client = Self.makeClient(settings: settings)
     }
 
@@ -93,9 +96,12 @@ final class AppStore: ObservableObject {
 
     #if DEBUG
     /// Test/preview hook: inject sessions without touching the daemon.
-    func setPreviewSessions(_ value: [MutagenSession]) {
+    func setPreviewSessions(_ value: [MutagenSession], saved: [SavedSession] = [],
+                            daemonAvailable: Bool = true, executableMissing: Bool = false) {
         sessions = value
-        daemonAvailable = true
+        self.saved = saved
+        self.daemonAvailable = daemonAvailable
+        if executableMissing { client = nil }
     }
     #endif
 
@@ -183,6 +189,7 @@ final class AppStore: ObservableObject {
         on session: MutagenSession,
         _ body: @escaping (MutagenClient) async throws -> Void
     ) {
+        guard !busySessionIDs.contains(session.id) else { return }
         guard let client else {
             lastError = MutagenError.executableNotFound.errorDescription
             return
@@ -226,7 +233,12 @@ final class AppStore: ObservableObject {
 
     /// Start a saved definition that has no live session by re-creating it.
     func start(_ definition: SavedSession) {
-        Task { _ = await createSession(definition) }
+        guard !startingDefinitionNames.contains(definition.name) else { return }
+        startingDefinitionNames.insert(definition.name)
+        Task {
+            defer { startingDefinitionNames.remove(definition.name) }
+            _ = await createSession(definition)
+        }
     }
 
     func forget(_ definition: SavedSession) {
@@ -316,27 +328,27 @@ final class AppStore: ObservableObject {
 
     private func persistSettings() {
         if let data = try? JSONEncoder().encode(settings) {
-            UserDefaults.standard.set(data, forKey: settingsKey)
+            defaults.set(data, forKey: settingsKey)
         }
     }
 
     private func persistSaved() {
         let sorted = saved.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
         if let data = try? JSONEncoder().encode(sorted) {
-            UserDefaults.standard.set(data, forKey: savedKey)
+            defaults.set(data, forKey: savedKey)
         }
     }
 
-    private static func loadSettings(key: String) -> AppSettings {
-        guard let data = UserDefaults.standard.data(forKey: key),
+    private static func loadSettings(key: String, defaults: UserDefaults) -> AppSettings {
+        guard let data = defaults.data(forKey: key),
               let value = try? JSONDecoder().decode(AppSettings.self, from: data) else {
             return AppSettings()
         }
         return value
     }
 
-    private static func loadSaved(key: String) -> [SavedSession] {
-        guard let data = UserDefaults.standard.data(forKey: key),
+    private static func loadSaved(key: String, defaults: UserDefaults) -> [SavedSession] {
+        guard let data = defaults.data(forKey: key),
               let value = try? JSONDecoder().decode([SavedSession].self, from: data) else {
             return []
         }
