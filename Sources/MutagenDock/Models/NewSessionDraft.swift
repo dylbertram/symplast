@@ -5,7 +5,7 @@ enum PanelRoute { case list, newSession, settings }
 
 /// A shared layout constant so the menu-bar window has a consistent width.
 enum Layout {
-    static let panelWidth: CGFloat = 380
+    static let panelWidth: CGFloat = 404
 }
 
 /// Editable state for the New/Edit Session form. It lives in `AppStore` (not in

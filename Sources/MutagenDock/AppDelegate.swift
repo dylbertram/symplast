@@ -2,18 +2,6 @@ import SwiftUI
 import AppKit
 import Combine
 
-@main
-struct MutagenDockApp: App {
-    @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
-
-    var body: some Scene {
-        // The app is status-bar only; the AppDelegate owns the NSStatusItem and
-        // popover. A Settings scene satisfies the App protocol without opening
-        // any window on launch.
-        Settings { EmptyView() }
-    }
-}
-
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     let store = AppStore()
@@ -95,6 +83,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         button.toolTip = tooltip
     }
 
+    private var tooltip: String {
+        if !store.daemonAvailable { return "MutagenDock — daemon not running" }
+        if store.sessions.isEmpty { return "MutagenDock — no sessions" }
+        if store.disconnectedCount > 0 {
+            return "MutagenDock — \(store.disconnectedCount) disconnected"
+        }
+        return "MutagenDock — \(store.sessions.count) session(s), \(store.worstState.label)"
+    }
+
     // MARK: - Popover sizing
 
     private func updatePopoverSize() {
@@ -113,7 +110,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func currentPopoverHeight() -> CGFloat {
         switch store.route {
         case .newSession, .settings:
-            return 540
+            return 560
         case .list:
             let sessionCount = store.sessions.count
             let savedCount = store.stoppedDefinitions.count
@@ -121,22 +118,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
             var height: CGFloat = 40 + 40 + 2 // header + footer + dividers
             if sessionCount > 0 { height += 24 }
-            if savedCount > 0 { height += 24 }
-            height += CGFloat(sessionCount) * 70
-            height += CGFloat(savedCount) * 58
+            if savedCount > 0 { height += 26 }
+            height += CGFloat(sessionCount) * 78
+            height += CGFloat(savedCount) * 62
+            height += 10 // avoid a scroll indicator for snug content
             if !store.daemonAvailable { height += 96 }
             if store.lastError != nil && store.daemonAvailable { height += 34 }
-            return min(600, max(180, height))
+            return min(620, max(190, height))
         }
-    }
-
-    private var tooltip: String {
-        if !store.daemonAvailable { return "MutagenDock — daemon not running" }
-        if store.sessions.isEmpty { return "MutagenDock — no sessions" }
-        if store.disconnectedCount > 0 {
-            return "MutagenDock — \(store.disconnectedCount) disconnected"
-        }
-        return "MutagenDock — \(store.sessions.count) session(s), \(store.worstState.label)"
     }
 
     // MARK: - Mouse interaction
@@ -158,6 +147,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
         guard let button = statusItem?.button else { return }
+        updatePopoverSize()
         NSApp.activate(ignoringOtherApps: true)
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         popover.contentViewController?.view.window?.makeKey()

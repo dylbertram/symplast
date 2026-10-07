@@ -47,6 +47,7 @@ struct SessionRowView: View {
                     Text(disconnectedDetail)
                         .font(.system(size: 10))
                         .foregroundStyle(.red.opacity(0.85))
+                        .lineLimit(1)
                 } else {
                     let summary = Format.contents(
                         directories: session.alpha.directories,
@@ -57,11 +58,11 @@ struct SessionRowView: View {
                         Text(summary)
                             .font(.system(size: 10))
                             .foregroundStyle(.tertiary)
+                            .lineLimit(1)
                     }
                 }
             }
-
-            Spacer(minLength: 4)
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             trailingControls
         }

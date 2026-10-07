@@ -100,19 +100,18 @@ struct NewSessionView: View {
                 HStack(spacing: 5) {
                     TextField("user", text: $store.draft.sshUser)
                         .textFieldStyle(.roundedBorder)
-                        .frame(width: 82)
+                        .frame(width: 76)
                     Text("@").foregroundStyle(.secondary)
                     TextField("host", text: $store.draft.sshHost)
                         .textFieldStyle(.roundedBorder)
                     Text(":").foregroundStyle(.secondary)
-                    VStack(alignment: .leading, spacing: 1) {
-                        TextField("port", text: $store.draft.sshPort)
-                            .textFieldStyle(.roundedBorder)
-                            .frame(width: 48)
-                        Text("optional")
-                            .font(.system(size: 9))
-                            .foregroundStyle(.tertiary)
-                    }
+                    TextField("port", text: $store.draft.sshPort)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 50)
+                    Text("(optional)")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.tertiary)
+                        .fixedSize()
                 }
                 TextField("/remote/path", text: $store.draft.sshPath)
                     .textFieldStyle(.roundedBorder)
