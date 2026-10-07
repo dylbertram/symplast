@@ -6,7 +6,7 @@ enum PanelRoute { case list, newSession, settings }
 /// A reusable fixed layout so the menu-bar window never needs to resize.
 enum Layout {
     static let panelWidth: CGFloat = 380
-    static let contentHeight: CGFloat = 420
+    static let panelHeight: CGFloat = 520
 }
 
 /// Editable state for the New/Edit Session form. It lives in `AppStore` (not in
@@ -39,9 +39,12 @@ struct NewSessionDraft: Codable, Equatable {
     var mode: String = SyncMode.twoWaySafe.rawValue
     var ignoreText: String = ""
     var ignoreVCS: Bool = true
+    var ignoreBuildArtifacts: Bool = false
 
     /// The directories blocked by Mutagen's `--ignore-vcs` group.
     static let vcsIgnores = [".git/", ".svn/", ".hg/", ".bzr/", "_darcs/", "CVS/"]
+    /// Common build output directories/artifacts.
+    static let buildIgnores = ["target/", "build/", "bin/", "*.o"]
 
     init() {}
 
@@ -52,11 +55,15 @@ struct NewSessionDraft: Codable, Equatable {
         ignoreVCS = definition.ignoreVCS
 
         let vcs = Set(Self.vcsIgnores)
+        let build = Set(Self.buildIgnores)
         ignoreText = definition.ignorePaths
-            .filter { !vcs.contains($0) }
+            .filter { !vcs.contains($0) && !build.contains($0) }
             .joined(separator: "\n")
         if definition.ignorePaths.contains(where: { vcs.contains($0) }) {
             ignoreVCS = true
+        }
+        if definition.ignorePaths.contains(where: { build.contains($0) }) {
+            ignoreBuildArtifacts = true
         }
 
         let beta = definition.beta
@@ -84,9 +91,14 @@ struct NewSessionDraft: Codable, Equatable {
     }
 
     /// Every pattern that will actually be blocked, for display next to the
-    /// ignore toggle.
+    /// ignore toggles.
     var effectiveIgnores: [String] {
-        (ignoreVCS ? Self.vcsIgnores : []) + customIgnorePaths
+        var patterns: [String] = []
+        if ignoreVCS { patterns += Self.vcsIgnores }
+        if ignoreBuildArtifacts { patterns += Self.buildIgnores }
+        patterns += customIgnorePaths
+        var seen = Set<String>()
+        return patterns.filter { seen.insert($0).inserted }
     }
 
     var resolvedBeta: String {
@@ -117,12 +129,16 @@ struct NewSessionDraft: Codable, Equatable {
     }
 
     func toSavedSession() -> SavedSession {
-        SavedSession(
+        var ignores = customIgnorePaths
+        if ignoreBuildArtifacts { ignores += Self.buildIgnores }
+        var seen = Set<String>()
+        ignores = ignores.filter { seen.insert($0).inserted }
+        return SavedSession(
             name: name.trimmingCharacters(in: .whitespaces),
             alpha: PathUtil.expand(alpha),
             beta: resolvedBeta,
             mode: mode,
-            ignorePaths: customIgnorePaths,
+            ignorePaths: ignores,
             ignoreVCS: ignoreVCS
         )
     }

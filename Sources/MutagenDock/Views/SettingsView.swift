@@ -79,7 +79,7 @@ struct SettingsView: View {
                 }
                 .padding(12)
             }
-            .frame(height: Layout.contentHeight)
+            .frame(maxHeight: .infinity)
             Divider()
             HStack {
                 Spacer()

@@ -23,6 +23,7 @@ struct NewSessionView: View {
                         HStack(spacing: 6) {
                             TextField("/Users/you/project", text: $store.draft.alpha)
                                 .textFieldStyle(.roundedBorder)
+                                .multilineTextAlignment(.trailing)
                             Button("Choose…") {
                                 if let chosen = FolderPicker.choose(initialPath: store.draft.alpha) {
                                     store.draft.alpha = chosen
@@ -48,10 +49,16 @@ struct NewSessionView: View {
                     }
 
                     field("Sync mode") {
-                        Picker("", selection: $store.draft.mode) {
-                            ForEach(SyncMode.allCases) { Text($0.title).tag($0.rawValue) }
+                        VStack(alignment: .leading, spacing: 5) {
+                            Picker("", selection: $store.draft.mode) {
+                                ForEach(SyncMode.allCases) { Text($0.title).tag($0.rawValue) }
+                            }
+                            .labelsHidden()
+                            Text(selectedModeDetail)
+                                .font(.system(size: 10))
+                                .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
-                        .labelsHidden()
                     }
 
                     field("Ignore paths (optional, one per line)") {
@@ -61,6 +68,8 @@ struct NewSessionView: View {
                                 .frame(height: 52)
                                 .overlay(RoundedRectangle(cornerRadius: 5).stroke(Color.secondary.opacity(0.25)))
                             Toggle("Ignore VCS directories", isOn: $store.draft.ignoreVCS)
+                                .font(.system(size: 11))
+                            Toggle("Ignore build output (target/, build/, bin/, *.o)", isOn: $store.draft.ignoreBuildArtifacts)
                                 .font(.system(size: 11))
                             Text(blockedSummary)
                                 .font(.system(size: 10))
@@ -78,7 +87,7 @@ struct NewSessionView: View {
                 }
                 .padding(12)
             }
-            .frame(height: Layout.contentHeight)
+            .frame(maxHeight: .infinity)
             Divider()
             footer
         }
@@ -101,13 +110,18 @@ struct NewSessionView: View {
                         .textFieldStyle(.roundedBorder)
                         .frame(width: 44)
                 }
-                TextField("/remote/path", text: $store.draft.sshPath)
+                Text("Remote path (optional)")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.tertiary)
+                TextField("defaults to the home directory", text: $store.draft.sshPath)
                     .textFieldStyle(.roundedBorder)
+                    .multilineTextAlignment(.trailing)
             }
         case .local:
             HStack(spacing: 6) {
                 TextField("/path/to/other/folder", text: $store.draft.betaLocal)
                     .textFieldStyle(.roundedBorder)
+                    .multilineTextAlignment(.trailing)
                 Button("Choose…") {
                     if let chosen = FolderPicker.choose(initialPath: store.draft.betaLocal) {
                         store.draft.betaLocal = chosen
@@ -118,6 +132,7 @@ struct NewSessionView: View {
         case .custom:
             TextField("user@host:/path or ssh://user@host:22/path", text: $store.draft.customBeta)
                 .textFieldStyle(.roundedBorder)
+                .multilineTextAlignment(.trailing)
         }
     }
 
@@ -162,6 +177,10 @@ struct NewSessionView: View {
         let ignores = store.draft.effectiveIgnores
         if ignores.isEmpty { return "Nothing is currently blocked." }
         return "Blocks: " + ignores.joined(separator: ", ")
+    }
+
+    private var selectedModeDetail: String {
+        SyncMode(rawValue: store.draft.mode)?.detail ?? ""
     }
 
     private func create() {

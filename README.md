@@ -19,7 +19,8 @@ Mutagen's internals, so it stays compatible across Mutagen versions.
 - **Disconnected monitoring**: unreachable endpoints are highlighted in red and
   the menu bar icon changes so you notice without opening the menu.
 - **Create & save sessions**: pick a local folder plus an SSH target, a local
-  folder, or a custom URL; choose a sync mode, ignore rules and VCS handling.
+  folder, or a custom URL; choose a sync mode (with an explanation of each),
+  ignore rules and VCS/build-output handling.
 - **Edit sessions**: change a session's name, folders, mode or ignores; Mutagen
   has no in-place edit, so MutagenDock terminates and recreates it for you.
 - **Saved definitions**: every session you create (and every existing session
@@ -56,7 +57,8 @@ and launches straight into the menu bar.
 
 ## Using it
 
-- Click the menu bar icon to open the panel.
+- Click the menu bar icon to open the panel; **right-click** (or ⌃-click) it
+  for a quick menu with **New session…**, **Open**, and **Quit**.
 - Hover a row's **pause** button to stop watching; press **play** to resume.
 - `⋯` on a row → **edit** the session, reveal the local folder, copy paths,
   reset history, or terminate.

@@ -16,18 +16,6 @@ enum FolderPicker {
             panel.directoryURL = URL(fileURLWithPath: expanded)
         }
         NSApp.activate(ignoringOtherApps: true)
-        // A MenuBarExtra window closes when it stops being key, and opening the
-        // panel makes it resign key. Temporarily becoming a regular app keeps
-        // the panel interaction feeling modal so the widget isn't lost.
-        let previousPolicy = NSApp.activationPolicy()
-        if previousPolicy != .regular {
-            NSApp.setActivationPolicy(.regular)
-        }
-        defer {
-            if previousPolicy != .regular {
-                NSApp.setActivationPolicy(previousPolicy)
-            }
-        }
         return panel.runModal() == .OK ? panel.url?.path : nil
     }
 }
