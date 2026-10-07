@@ -91,6 +91,7 @@ struct NewSessionView: View {
                 }
                 .padding(12)
             }
+            .frame(height: 430)
             Divider()
             footer
         }

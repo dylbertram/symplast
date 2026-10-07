@@ -79,6 +79,7 @@ struct SettingsView: View {
                 }
                 .padding(12)
             }
+            .frame(height: 430)
             Divider()
             HStack {
                 Spacer()
