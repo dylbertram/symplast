@@ -15,6 +15,9 @@ struct MenuContentView: View {
             }
         }
         .frame(width: Layout.panelWidth)
+        .frame(maxHeight: .infinity)
+        // Leave the content transparent so AppKit's popover material also
+        // supplies the body fill, matching its native arrow and rounded edges.
     }
 
     // MARK: - List
@@ -46,27 +49,27 @@ struct MenuContentView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             ScrollView {
-                VStack(alignment: .leading, spacing: 0) {
+                LazyVStack(alignment: .leading, spacing: 0) {
                     if !store.sessions.isEmpty {
-                        sectionHeader("Sessions")
+                        if !store.stoppedDefinitions.isEmpty {
+                            sectionHeader("Sessions", count: store.sessions.count)
+                        }
                         ForEach(store.sessions) { session in
-                            SessionRowView(store: store, session: session)
-                            if session.id != store.sessions.last?.id || !store.stoppedDefinitions.isEmpty {
-                                Divider().padding(.leading, 10)
-                            }
+                            SessionRowView(store: store, session: session,
+                                           showsSeparator: session.id != store.sessions.last?.id || !store.stoppedDefinitions.isEmpty)
                         }
                     }
 
                     if !store.stoppedDefinitions.isEmpty {
-                        sectionHeader("Saved · not running")
+                        sectionHeader("Saved · not running", count: store.stoppedDefinitions.count)
                         ForEach(store.stoppedDefinitions) { definition in
-                            StoppedRowView(store: store, definition: definition)
+                            StoppedRowView(store: store, definition: definition,
+                                           showsSeparator: definition.id != store.stoppedDefinitions.last?.id)
                         }
                     }
                 }
-                // Pin the content to the panel width so rows always fill the
-                // width instead of sizing to their (narrow) intrinsic width.
-                .frame(width: Layout.panelWidth, alignment: .leading)
+                .padding(.bottom, 4)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
             .frame(maxHeight: .infinity)
         }
@@ -74,8 +77,8 @@ struct MenuContentView: View {
 
     private var header: some View {
         HStack(spacing: 8) {
-            BrandLogo(size: 16, color: store.worstState.color)
-            VStack(alignment: .leading, spacing: 0) {
+            BrandLogo(size: 17, color: store.worstState.color)
+            VStack(alignment: .leading, spacing: 1) {
                 Text("MutagenDock")
                     .font(.system(size: 13, weight: .semibold))
                 Text(headerSubtitle)
@@ -84,88 +87,94 @@ struct MenuContentView: View {
             }
             Spacer()
             if store.isManualRefreshing {
-                ProgressView().controlSize(.small).scaleEffect(0.7)
+                ProgressView().controlSize(.small).frame(width: 24, height: 24)
+                    .accessibilityLabel("Refreshing sessions")
+            } else {
+                PanelIconButton(symbol: "arrow.clockwise", label: "Refresh now") {
+                    Task { await store.refreshNow() }
+                }
             }
-            Button {
-                Task { await store.refreshNow() }
-            } label: {
-                Image(systemName: "arrow.clockwise")
+            PanelIconButton(symbol: "gearshape", label: "Settings") {
+                store.route = .settings
             }
-            .buttonStyle(.borderless)
-            .help("Refresh now")
-
-            Button { store.route = .settings } label: {
-                Image(systemName: "gear")
-            }
-            .buttonStyle(.borderless)
-            .help("Settings")
         }
         .padding(.horizontal, 12)
-        .frame(height: 40)
+        .frame(height: Layout.headerHeight)
     }
 
     private var headerSubtitle: String {
+        if executableMissing { return "Mutagen not found" }
         if !store.daemonAvailable { return "Daemon not running" }
         if store.sessions.isEmpty { return "No active sessions" }
-        let connected = store.sessions.count - store.disconnectedCount
         if store.disconnectedCount > 0 {
-            return "\(connected) connected · \(store.disconnectedCount) disconnected"
+            return "\(store.disconnectedCount) session\(store.disconnectedCount == 1 ? " needs" : "s need") attention"
         }
-        return "\(store.sessions.count) session\(store.sessions.count == 1 ? "" : "s")"
+        if store.sessions.allSatisfy({ $0.isPaused }) { return "All sessions paused" }
+        return "\(store.sessions.count) session\(store.sessions.count == 1 ? "" : "s") · \(store.worstState.label.lowercased())"
     }
 
     private var daemonBanner: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Label("Mutagen daemon isn’t running", systemImage: "exclamationmark.triangle.fill")
+            Label(executableMissing ? "Mutagen executable not found" : "Mutagen daemon isn’t running",
+                  systemImage: "exclamationmark.triangle.fill")
                 .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(.orange)
-            Text("Start it to sync your folders. MutagenDock normally starts it automatically.")
+                .foregroundStyle(PanelColors.warning)
+            Text(executableMissing
+                 ? "Install with brew install mutagen, or choose an executable in Settings."
+                 : "Start the daemon to sync your folders. Existing sessions and files are preserved.")
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
-            Button("Start daemon") { store.startDaemon() }
-                .controlSize(.small)
+                .fixedSize(horizontal: false, vertical: true)
+                .textSelection(.enabled)
+            if executableMissing {
+                Button("Open Settings") { store.route = .settings }.controlSize(.small)
+            } else {
+                Button("Start daemon") { store.startDaemon() }.controlSize(.small)
+            }
         }
-        .padding(12)
+        .padding(.horizontal, 12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.orange.opacity(0.08))
+        .frame(height: Layout.bannerHeight)
+        .overlay(alignment: .bottom) { Divider() }
     }
 
+    private var executableMissing: Bool { store.detectedExecutablePath == "not found" }
+
     private func errorBanner(_ message: String) -> some View {
-        Text(message)
-            .font(.system(size: 11))
-            .foregroundStyle(.red)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.red.opacity(0.08))
+        ScrollView {
+            InlineError(message: message)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 4)
+        .frame(height: Layout.errorHeight)
     }
 
     private var emptyState: some View {
         VStack(spacing: 8) {
             Image(systemName: "folder.badge.plus")
-                .font(.system(size: 22))
+                .font(.system(size: 22, weight: .light))
                 .foregroundStyle(.secondary)
             Text("No synchronized folders yet")
                 .font(.system(size: 12, weight: .medium))
-            Text("Add a local folder and a remote target to start syncing.")
+            Text("Connect a local folder to another folder\nor an SSH server to get started.")
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
-            Button("New session…") { store.beginNewSession() }
-                .controlSize(.small)
-                .padding(.top, 2)
         }
-        .padding(24)
+        .padding(16)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    private func sectionHeader(_ title: String) -> some View {
-        Text(title.uppercased())
-            .font(.system(size: 9, weight: .semibold))
-            .foregroundStyle(.tertiary)
-            .padding(.horizontal, 12)
-            .padding(.top, 8)
-            .padding(.bottom, 2)
+    private func sectionHeader(_ title: String, count: Int) -> some View {
+        HStack(spacing: 5) {
+            Text(title).font(.system(size: 10, weight: .medium))
+            Text("·").font(.system(size: 10))
+            Text("\(count)").font(.system(size: 10)).monospacedDigit()
+            Spacer()
+        }
+        .foregroundStyle(.secondary)
+        .padding(.horizontal, 12)
+        .frame(height: Layout.sectionHeight)
     }
 
     private var footer: some View {
@@ -177,6 +186,8 @@ struct MenuContentView: View {
                     .font(.system(size: 11))
             }
             .buttonStyle(.borderless)
+            .foregroundStyle(.secondary)
+            .keyboardShortcut("n", modifiers: .command)
 
             Spacer()
 
@@ -188,7 +199,7 @@ struct MenuContentView: View {
             .foregroundStyle(.secondary)
         }
         .padding(.horizontal, 12)
-        .frame(height: 40)
+        .frame(height: Layout.footerHeight)
     }
 }
 
@@ -196,37 +207,53 @@ struct MenuContentView: View {
 struct StoppedRowView: View {
     @ObservedObject var store: AppStore
     let definition: SavedSession
+    var showsSeparator = true
 
     var body: some View {
-        HStack(spacing: 10) {
-            StatusDot(state: .idle)
+        HStack(spacing: 8) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(definition.name)
                     .font(.system(size: 12, weight: .medium))
+                    .lineLimit(1)
+                    .help(definition.name)
                 Text(definition.summary)
-                    .font(.system(size: 10))
+                    .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                     .truncationMode(.middle)
-                    .help(definition.alpha)
+                    .help("\(definition.alpha) → \(definition.beta)")
             }
             Spacer(minLength: 4)
-            Button("Start") { store.start(definition) }
-                .controlSize(.small)
+            if store.startingDefinitionNames.contains(definition.name) {
+                ProgressView().controlSize(.small).frame(width: 40, height: 24)
+                    .accessibilityLabel("Starting \(definition.name)")
+            } else {
+                Button("Start") { store.start(definition) }
+                    .buttonStyle(.borderless)
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+            }
             Menu {
                 Button("Edit…") { store.beginEdit(definition) }
                 Button("Forget definition", role: .destructive) {
                     store.forget(definition)
                 }
             } label: {
-                Image(systemName: "ellipsis.circle")
+                Image(systemName: "ellipsis")
+                    .frame(width: 24, height: 24)
             }
             .menuStyle(.borderlessButton)
             .menuIndicator(.hidden)
             .fixedSize()
+            .help("Saved session actions")
+            .accessibilityLabel("Actions for \(definition.name)")
+            .disabled(store.startingDefinitionNames.contains(definition.name))
         }
-        .padding(.vertical, 6)
-        .padding(.horizontal, 10)
+        .padding(.horizontal, 12)
         .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(height: Layout.savedRowHeight)
+        .overlay(alignment: .bottom) {
+            if showsSeparator { Divider().padding(.horizontal, 12) }
+        }
     }
 }

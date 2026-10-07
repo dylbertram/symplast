@@ -12,6 +12,7 @@ import SwiftUI
 struct SyncModeIndicator: View {
     let mode: String?
     let alphaIsLocal: Bool
+    var vertical = false
 
     var body: some View {
         Group {
@@ -19,33 +20,40 @@ struct SyncModeIndicator: View {
             case "two-way-safe":
                 bidirectional
             case "two-way-resolved":
-                HStack(spacing: 2) {
-                    trophy
-                    bidirectional
+                if vertical {
+                    VStack(spacing: 2) {
+                        trophy
+                        bidirectional
+                    }
+                } else {
+                    HStack(spacing: 2) {
+                        trophy
+                        bidirectional
+                    }
                 }
             case "one-way-safe":
-                Image(systemName: "arrow.right")
+                Image(systemName: vertical ? "arrow.down" : "arrow.right")
             case "one-way-replica":
-                Image(systemName: "arrow.right")
+                Image(systemName: vertical ? "arrow.down" : "arrow.right")
                     .fontWeight(.bold)
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(PanelColors.warning)
             default:
                 bidirectional
             }
         }
-        .font(.system(size: 9))
+        .font(.system(size: 10))
         .foregroundStyle(.secondary)
         .help(helpText)
         .accessibilityLabel(helpText)
     }
 
     private var bidirectional: some View {
-        Image(systemName: "arrow.left.arrow.right")
+        Image(systemName: vertical ? "arrow.up.arrow.down" : "arrow.left.arrow.right")
     }
 
     private var trophy: some View {
         Image(systemName: "trophy.fill")
-            .foregroundStyle(.yellow)
+            .foregroundStyle(PanelColors.warning)
     }
 
     private var alphaSideName: String { alphaIsLocal ? "local" : "remote" }

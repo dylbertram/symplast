@@ -1,111 +1,173 @@
-# MutagenDock
+<p align="center">
+  <img src="Resources/AppIcon-1024.png" width="96" height="96" alt="MutagenDock Spotlight and Finder app icon">
+</p>
 
-A small macOS **menu bar** app that shows which folders are synced with
-[Mutagen](https://mutagen.io/documentation/introduction/installation/), lets you
-pause/resume them, add & save new sync sessions, and warns you when a session
-goes disconnected.
+<h1 align="center">MutagenDock</h1>
 
-It is a thin, native SwiftUI front-end over the `mutagen` CLI — it never touches
-Mutagen's internals, so it stays compatible across Mutagen versions.
+<p align="center">
+  <strong>Folder sync, quietly in your menu bar.</strong><br>
+  A compact, native macOS companion for <a href="https://mutagen.io/">Mutagen</a>.
+</p>
 
-## Features
+<p align="center">
+  macOS 14+ &nbsp;·&nbsp; SwiftUI &nbsp;·&nbsp; Powered by the Mutagen CLI
+</p>
 
-- **Menu bar icon**: the Mutagen logo, tinted to reflect overall health
-  (red when disconnected/errored, grey when paused). Shows the session count.
-- **Sync-direction indicator**: each row shows the session's real mode — a
-  bidirectional arrow `⇄` (two-way safe), the same arrow plus a **trophy on the
-  side that wins** conflicts (two-way resolved), `→` (one-way safe) or a bold
-  orange `→` (one-way replica). The mode is read from `mutagen sync list -l`.
-- **App icon**: a rounded tile with the Mutagen mark (`scripts/make-icon.swift`),
-  built into an `.icns` and shown in Spotlight/Finder.
-- **Live session list** with per-session status, local ⇄ remote paths and
-  file/size counts, refreshed on a configurable interval.
-- **Start / stop**: pause and resume any session inline.
-- **Force sync** (`flush`) and **reset history** per session.
-- **Disconnected monitoring**: unreachable endpoints are highlighted in red and
-  the menu bar icon changes so you notice without opening the menu.
-- **Create & save sessions**: pick a local folder plus an SSH target, a local
-  folder, or a custom URL; choose a sync mode (each with an explanation,
-  including a "two-way (remote wins)" option), ignore rules and VCS/build-output
-  handling.
-- **Edit sessions**: change a session's name, folders, mode or ignores; Mutagen
-  has no in-place edit, so MutagenDock terminates and recreates it for you.
-- **Saved definitions**: every session you create (and every existing session
-  MutagenDock discovers) is remembered locally. Terminate a session and it moves
-  to "Saved · not running" where you can start it again with one click.
-- **Daemon handling**: detects when the Mutagen daemon isn't running and offers a
-  one-click start (it is also started automatically on launch).
+<p align="center">
+  <a href="#installation">Installation</a> &nbsp;·&nbsp;
+  <a href="#usage">Usage</a> &nbsp;·&nbsp;
+  <a href="#development">Development</a>
+</p>
 
-## Requirements
+<p align="center">
+  <img src="docs/images/sessions.png" width="420" alt="MutagenDock menu-bar panel showing a connected session, a disconnected remote, and a saved session">
+</p>
 
-- macOS 14 or newer
-- [Mutagen](https://mutagen.io/documentation/introduction/installation/) installed
-  (`brew install mutagen`), plus `ssh` for remote targets
-- Xcode command line tools / Swift toolchain to build
+See which folders are syncing, pause or resume a session, and spot connection
+problems without opening a terminal. MutagenDock puts a small interface over
+the `mutagen` CLI; Mutagen handles the actual synchronization.
 
-## Build & run
+## At a glance
+
+- **Live status.** Paths, sync direction, file counts, and connection health in a compact panel. The menu bar icon turns red when a session needs attention.
+- **Quick controls.** Pause and resume inline. Use `⋯` to force a sync cycle, reveal a folder, copy paths, edit, reset history, or terminate a session.
+- **Flexible targets.** Connect a local folder to an SSH server, another local folder, or a custom Mutagen URL.
+- **Your sync rules.** Choose two-way or one-way sync, decide how conflicts are handled, and exclude version-control folders, build output, or custom patterns.
+- **Remembered sessions.** Created sessions and discovered definitions are saved locally. A terminated session can be started again from **Saved · not running**.
+- **Native and unobtrusive.** Light and dark appearances, no Dock icon, configurable refresh intervals, and optional daemon startup on launch.
+
+## Screenshots
+
+<table>
+  <tr>
+    <th>Create a session</th>
+    <th>Settings</th>
+  </tr>
+  <tr>
+    <td>
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="docs/images/new-session-dark.png">
+        <img src="docs/images/new-session-light.png" width="360" alt="New session form with an SSH target, sync mode, and ignore options">
+      </picture>
+    </td>
+    <td>
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="docs/images/settings-dark.png">
+        <img src="docs/images/settings-light.png" width="360" alt="Settings for refresh interval, menu bar count, executable path, and daemon startup">
+      </picture>
+    </td>
+  </tr>
+</table>
+
+*Screenshots use example sessions, not live connections. The icon above is the
+same app icon used in Spotlight and Finder.*
+
+## Installation
+
+### Requirements
+
+- **macOS 14 or newer.**
+- **[Mutagen](https://mutagen.io/documentation/introduction/installation/)** installed separately.
+- **Xcode Command Line Tools** with Swift 5.9 or newer to build from source.
+- Working **SSH access** for remote targets. Check that you can connect with `ssh` first.
+
+### Homebrew (planned)
+
+Homebrew distribution is planned. The install command will be added here once
+the release pipeline and formula are published. For now, build from source below.
+
+### Build from source
+
+Install Mutagen with [Homebrew](https://brew.sh/):
 
 ```sh
-# build a debug/release .app bundle into ./build
-./scripts/build-app.sh
+brew install mutagen
+```
 
-# launch it
+If you haven't installed Apple's command line tools, run `xcode-select --install`.
+Then clone the project and build the app:
+
+```sh
+git clone https://github.com/dylbertram/mutagen-dock-ui.git
+cd mutagen-dock-ui
+./scripts/build-app.sh
 open build/MutagenDock.app
 ```
 
-Or build, install to `/Applications`, and launch in one step:
+The app opens directly in the **menu bar**, not the Dock.
+
+To build, install to `/Applications`, and launch instead:
 
 ```sh
 ./scripts/install.sh
 ```
 
-Because the bundle is a menu bar–only app (`LSUIElement`), it has no Dock icon
-and launches straight into the menu bar.
+The install script replaces an existing `/Applications/MutagenDock.app` and
+restarts the app. Once installed, search for **Mutagen Dock** in Spotlight.
 
-## Using it
+## Usage
 
-- Click the menu bar icon to open the panel; **right-click** (or ⌃-click) it
-  for a quick menu with **New session…**, **Open**, and **Quit**.
-- Hover a row's **pause** button to stop watching; press **play** to resume.
-- `⋯` on a row → **edit** the session, reveal the local folder, copy paths,
-  reset history, or terminate.
-- **New session** → fill in a name, local folder, target, mode and ignore rules.
-- **Start** next to a saved definition recreates its Mutagen session.
+1. **Open the panel.** Click the menu bar icon. Existing Mutagen sessions appear automatically.
+2. **Add folders.** Choose **New session**, enter a name and local folder, then choose an SSH target, local folder, or custom URL.
+3. **Choose a mode.** Two-way safe sync is the default. Read the explanation before choosing automatic conflict resolution or one-way replica.
+4. **Set exclusions.** Toggle version-control folders or build output. Click the **Additional ignore patterns** row to enter patterns, one per line.
+5. **Create the session.** MutagenDock starts it and remembers its definition.
 
-## Configuration
+Click **pause** to pause a session or **play** to resume it. The `⋯` menu contains
+the less-frequent actions. **Terminate** removes the Mutagen session but keeps
+its saved definition; **Start** recreates it. **Forget definition** removes only
+the saved entry.
 
-Open **Settings** (gear icon) to:
+The arrows show how changes flow between the displayed endpoints. A **trophy**
+marks the side that wins conflicts in two-way resolved mode. An **orange arrow**
+indicates one-way replica mode, which can overwrite or delete target files.
 
-- Override the `mutagen` executable path (auto-detected otherwise).
-- Change the refresh interval (1–15 s).
-- Toggle the session count in the menu bar.
-- Toggle auto-starting the daemon on launch.
+Right-click or Control-click the menu bar icon for **New session**, **Open**, and
+**Quit**. Quitting MutagenDock does **not** stop Mutagen's daemon or your sync sessions.
 
-`mutagen` is located by checking Homebrew/system locations first, then falling
-back to your login shell. This matters because apps launched from Finder do not
-inherit your shell `PATH`; MutagenDock also repairs `PATH`, `HOME` and
-`SSH_AUTH_SOCK` for the child process so SSH remotes keep working.
+## Settings & troubleshooting
 
-## How it works
+Open the **gear** icon to change the refresh interval (1–15 seconds), show or hide
+the session count, choose whether to start the daemon on launch, or override the
+`mutagen` executable path.
 
-| File | Responsibility |
-| --- | --- |
-| `Sources/MutagenDock/MutagenDockApp.swift` | `@main` app, `MenuBarExtra`, app delegate |
-| `Services/MutagenClient.swift` | Finds & runs `mutagen`, parses JSON, builds commands |
-| `Services/AppStore.swift` | Observable state, polling loop, actions, persistence |
-| `Models/` | Session/endpoint models, sync state, saved definitions, settings |
-| `Views/` | Menu bar label, panel, session rows, new-session form, settings |
+- **Mutagen not found?** Install it, or set its path in Settings. Common Homebrew locations and your login shell are checked automatically.
+- **Daemon not running?** Click **Start daemon** in the panel or Settings.
+- **Remote disconnected?** Check the host, network connection, and SSH authentication. Confirm the connection works from your terminal, then refresh the panel.
 
-Data comes from `mutagen sync list --template '{{json .}}'`. Actions map to
-`mutagen sync pause|resume|flush|reset|terminate|create`. Saved definitions are
-stored in `UserDefaults`.
+## Important notes
 
-## Notes & limitations
+- **Mutagen is required.** This app is a front-end, not a replacement for Mutagen or SSH.
+- **Editing recreates a session.** Mutagen has no in-place edit operation, so saving changes terminates and recreates the session. Files stay in place.
+- **Conflicts need attention.** Status errors are shown, but there is no built-in conflict resolver.
+- **Imported definitions are best-effort.** Review the sync mode, ignore rules, and SSH port before restarting or editing a session discovered from the CLI. Automatically reconstructed SSH targets do not retain a custom port.
+- **Saved definitions are not backups.** Settings and definitions are stored locally in `UserDefaults`; Mutagen owns the running sessions and synchronization history.
 
-- Conflicts are surfaced via the session status; there is no dedicated conflict
-  resolver UI yet.
-- The SSH port is preserved when you create a session through the form; a
-  session reconstructed automatically from an existing one uses the
-  `user@host:path` form (Mutagen's default SSH port).
-- Sessions are stored by Mutagen itself; "saving" here means MutagenDock
-  remembers the *definition* so it can recreate a session you terminated.
+## Development
+
+The project uses Swift Package Manager, AppKit for the menu bar/popover, and
+SwiftUI for the interface. `MutagenClient` wraps CLI commands; `AppStore` handles
+polling, actions, and local persistence.
+
+```sh
+swift build
+swift test
+```
+
+Render isolated light/dark UI fixtures without starting Mutagen or changing
+your sessions:
+
+```sh
+bash scripts/preview-ui.sh
+```
+
+Images are written to `.report/ui-refinement/`. For documentation-ready examples,
+pass `--public`; add `--native` to capture the real popover, including its arrow:
+
+```sh
+bash scripts/preview-ui.sh .report/readme --public --native
+```
+
+Native capture requires screen-recording permission and briefly shows fixture
+popovers. Public README images live in [`docs/images`](docs/images); the app icon
+is [`Resources/AppIcon-1024.png`](Resources/AppIcon-1024.png).

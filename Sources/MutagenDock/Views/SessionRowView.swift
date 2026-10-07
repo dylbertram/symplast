@@ -3,113 +3,103 @@ import SwiftUI
 struct SessionRowView: View {
     @ObservedObject var store: AppStore
     let session: MutagenSession
+    var showsSeparator = true
+    @State private var isHovered = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 3) {
-            HStack(spacing: 8) {
-                StatusDot(state: session.state)
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 6) {
                 Text(session.name)
                     .font(.system(size: 13, weight: .semibold))
                     .lineLimit(1)
+                    .help(session.name)
                     .layoutPriority(1)
-                Text(session.state.label)
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(session.state.color)
-                    .padding(.horizontal, 5)
-                    .padding(.vertical, 1)
-                    .background(session.state.color.opacity(0.14), in: Capsule())
-                    .fixedSize()
-                Spacer(minLength: 0)
+                Spacer(minLength: 4)
+                trailingControls.fixedSize()
             }
 
-            HStack(spacing: 4) {
-                Image(systemName: session.alpha.isLocal ? "laptopcomputer" : "cloud")
-                    .font(.system(size: 9))
-                    .foregroundStyle(.secondary)
-                Text(session.alpha.shortDisplayName)
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                    .help(session.alpha.displayName)
-                SyncModeIndicator(mode: session.mode, alphaIsLocal: session.alpha.isLocal)
-                Text(session.beta.shortDisplayName)
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                    .help(session.beta.displayName)
-            }
-
-            if !session.isPaused && !session.isConnected {
-                Text(disconnectedDetail)
-                    .font(.system(size: 10))
-                    .foregroundStyle(.red.opacity(0.85))
-                    .lineLimit(1)
-            } else {
-                let summary = Format.contents(
-                    directories: session.alpha.directories,
-                    files: session.alpha.files,
-                    size: session.alpha.totalFileSize
-                )
-                if !summary.isEmpty {
-                    Text(summary)
-                        .font(.system(size: 10))
-                        .foregroundStyle(.tertiary)
-                        .lineLimit(1)
+            HStack(spacing: 6) {
+                // Alpha stays above beta, including remote-first sessions.
+                SyncModeIndicator(mode: session.mode, alphaIsLocal: session.alpha.isLocal, vertical: true)
+                    .frame(width: 14)
+                VStack(alignment: .leading, spacing: 2) {
+                    endpoint(session.alpha)
+                    endpoint(session.beta)
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            HStack(spacing: 8) {
+                StatusLabel(state: session.state)
+                if !detail.isEmpty {
+                    Text("·").foregroundStyle(.tertiary)
+                    Text(detail)
+                        .font(.system(size: hasProblem ? 10 : 9))
+                        .foregroundStyle(hasProblem ? PanelColors.critical : Color.secondary.opacity(0.85))
+                        .lineLimit(1)
+                        .help(detail)
+                }
+                Spacer(minLength: 0)
+            }
         }
-        // The text fills the full width, and the controls are pinned to the
-        // trailing edge with an intrinsic-size overlay so their position never
-        // depends on how the stack distributes space.
+        .padding(.horizontal, 12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.vertical, 8)
-        .padding(.leading, 10)
-        .padding(.trailing, 84)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .overlay(alignment: .topTrailing) {
-            trailingControls
-                .fixedSize()
-                .padding(.top, 7)
-                .padding(.trailing, 10)
+        .frame(height: Layout.sessionRowHeight)
+        .background(isHovered ? Color.primary.opacity(0.025) : .clear)
+        .overlay(alignment: .bottom) {
+            if showsSeparator { Divider().padding(.horizontal, 12) }
         }
         .contentShape(Rectangle())
+        .onHover { isHovered = $0 }
+    }
+
+    private func endpoint(_ endpoint: MutagenEndpoint) -> some View {
+        Text(endpoint.shortDisplayName)
+            .font(.system(size: 11))
+            .foregroundStyle(.primary.opacity(0.8))
+            .lineLimit(1)
+            .truncationMode(.middle)
+            .help(endpoint.displayName)
+            .accessibilityLabel("\(endpoint.isLocal ? "Local folder" : "Remote endpoint"): \(endpoint.displayName)")
+    }
+
+    private var hasProblem: Bool { session.state == .disconnected || session.state == .error }
+
+    private var detail: String {
+        if session.state == .disconnected { return disconnectedDetail }
+        if session.state == .error { return session.status }
+        if session.isPaused || session.state == .connecting { return "" }
+        return Format.contents(directories: session.alpha.directories,
+                               files: session.alpha.files, size: session.alpha.totalFileSize)
     }
 
     private var disconnectedDetail: String {
         var sides: [String] = []
-        if !session.alpha.isConnected { sides.append("local") }
+        if !session.alpha.isConnected { sides.append(session.alpha.isLocal ? "local" : "remote") }
         if !session.beta.isConnected { sides.append(session.beta.isLocal ? "target" : "remote") }
         return "Cannot reach \(sides.joined(separator: " and "))"
     }
 
     private var trailingControls: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 0) {
             if store.isBusy(session) {
                 ProgressView()
                     .controlSize(.small)
-                    .scaleEffect(0.6)
-                    .frame(width: 20, height: 20)
+                    .frame(width: 24, height: 24)
+                    .accessibilityLabel("Updating session")
             } else {
-                IconControl(
+                PanelIconButton(
                     symbol: session.isPaused ? "play.fill" : "pause.fill",
-                    help: session.isPaused ? "Resume session" : "Pause session"
+                    label: session.isPaused ? "Resume session" : "Pause session"
                 ) {
                     store.togglePause(session)
-                }
-
-                IconControl(
-                    symbol: "arrow.clockwise",
-                    help: "Force a sync cycle",
-                    disabled: session.isPaused
-                ) {
-                    store.flush(session)
                 }
             }
 
             Menu {
                 Button("Edit…") { store.beginEdit(session) }
+                Button("Force sync cycle") { store.flush(session) }
+                    .disabled(session.isPaused || !session.isConnected)
                 Divider()
                 Button("Reveal local folder") {
                     NSWorkspace.shared.reveal(session.alpha.isLocal ? session.alpha.path ?? "" : session.beta.path ?? "")
@@ -130,14 +120,16 @@ struct SessionRowView: View {
                     Text("Terminate session…")
                 }
             } label: {
-                Image(systemName: "ellipsis.circle")
-                    .font(.system(size: 13))
-                    .frame(width: 20, height: 20)
+                Image(systemName: "ellipsis")
+                    .font(.system(size: 12, weight: .medium))
+                    .frame(width: 24, height: 24)
                     .contentShape(Rectangle())
             }
             .menuStyle(.borderlessButton)
             .menuIndicator(.hidden)
             .help("More actions")
+            .accessibilityLabel("Actions for \(session.name)")
+            .disabled(store.isBusy(session))
         }
         .foregroundStyle(.secondary)
     }
@@ -159,27 +151,5 @@ struct SessionRowView: View {
         if alert.runModal() == .alertFirstButtonReturn {
             store.terminate(session)
         }
-    }
-}
-
-/// A borderless icon button with a consistent 20×20 hit area so the row's
-/// controls line up evenly.
-private struct IconControl: View {
-    let symbol: String
-    let help: String
-    var disabled: Bool = false
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            Image(systemName: symbol)
-                .font(.system(size: 13))
-                .frame(width: 20, height: 20)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.borderless)
-        .foregroundStyle(.secondary)
-        .disabled(disabled)
-        .help(help)
     }
 }

@@ -13,6 +13,7 @@ let package = Package(
         .executableTarget(
             name: "MutagenDock",
             path: "Sources/MutagenDock"
-        )
+        ),
+        .testTarget(name: "MutagenDockTests", dependencies: ["MutagenDock"])
     ]
 )

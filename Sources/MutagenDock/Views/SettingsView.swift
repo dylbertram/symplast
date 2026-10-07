@@ -10,100 +10,111 @@ struct SettingsView: View {
             header
             Divider()
             ScrollView {
-                VStack(alignment: .leading, spacing: 14) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("mutagen executable")
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 8) {
+                    PanelSection {
+                        Text("General").font(.system(size: 12, weight: .semibold))
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack {
+                                Text("Refresh interval")
+                                Spacer()
+                                Text(String(format: "%.1f s", store.settings.pollInterval))
+                                    .monospacedDigit()
+                                    .foregroundStyle(.secondary)
+                            }
+                            Slider(value: $store.settings.pollInterval, in: 1...15, step: 0.5)
+                                .accessibilityLabel("Refresh interval in seconds")
+                        }
+                        Toggle(isOn: $store.settings.showCount) {
+                            Text("Session count in menu bar").frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        Toggle(isOn: $store.settings.autoEnsureDaemon) {
+                            Text("Start daemon on launch").frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                    }
+
+                    Divider()
+                    PanelSection {
+                        Text("Mutagen executable").font(.system(size: 12, weight: .semibold))
                         TextField("Auto-detect", text: $pathDraft)
                             .textFieldStyle(.roundedBorder)
                             .font(.system(size: 11, design: .monospaced))
+                            .accessibilityLabel("Mutagen executable override path")
                         Text("Detected: \(store.detectedExecutablePath)")
-                            .font(.system(size: 10))
-                            .foregroundStyle(.tertiary)
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
                             .lineLimit(1)
                             .truncationMode(.middle)
                             .help(store.detectedExecutablePath)
                         HStack(spacing: 6) {
                             Button("Apply") {
+                                pathDraft = pathDraft.trimmingCharacters(in: .whitespacesAndNewlines)
                                 store.settings.mutagenPath = pathDraft
                                 store.applySettingsChange()
                             }
                             .controlSize(.small)
-                            Button("Use detected") {
+                            .disabled(pathDraft == store.settings.mutagenPath)
+                            Button("Auto-detect") {
                                 pathDraft = ""
                                 store.settings.mutagenPath = ""
                                 store.applySettingsChange()
                             }
                             .controlSize(.small)
+                            .disabled(pathDraft.isEmpty && store.settings.mutagenPath.isEmpty)
                         }
                     }
 
                     Divider()
-
-                    VStack(alignment: .leading, spacing: 4) {
+                    PanelSection {
                         HStack {
-                            Text("Refresh interval")
-                                .font(.system(size: 11, weight: .medium))
+                            Text("Daemon").font(.system(size: 12, weight: .semibold))
                             Spacer()
-                            Text(String(format: "%.1f s", store.settings.pollInterval))
-                                .font(.system(size: 11, design: .monospaced))
-                                .foregroundStyle(.secondary)
+                            Label(store.daemonAvailable ? "Running" : "Not running",
+                                  systemImage: store.daemonAvailable ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
+                                .font(.system(size: 11))
+                                .foregroundStyle(store.daemonAvailable ? PanelColors.success : PanelColors.warning)
                         }
-                        Slider(value: $store.settings.pollInterval, in: 1...15, step: 0.5)
-                    }
-
-                    Toggle("Show session count in menu bar", isOn: $store.settings.showCount)
-                        .font(.system(size: 12))
-
-                    Toggle("Start Mutagen daemon on launch", isOn: $store.settings.autoEnsureDaemon)
-                        .font(.system(size: 12))
-
-                    Divider()
-
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Daemon")
-                            .font(.system(size: 11, weight: .medium))
                         HStack(spacing: 6) {
                             Button("Start daemon") { store.startDaemon() }
                                 .controlSize(.small)
+                                .disabled(store.daemonAvailable || store.detectedExecutablePath == "not found")
                             Button("Refresh now") {
-                                Task { await store.refresh() }
+                                Task { await store.refreshNow() }
                             }
                             .controlSize(.small)
+                            .disabled(store.isManualRefreshing)
+                            if store.isManualRefreshing {
+                                ProgressView().controlSize(.small)
+                            }
                         }
-                        Text("Status: \(store.daemonAvailable ? "running" : "not running")")
-                            .font(.system(size: 10))
-                            .foregroundStyle(.secondary)
+                    }
+                    if let error = store.lastError {
+                        InlineError(message: error)
                     }
                 }
                 .padding(12)
+                .font(.system(size: 12))
+                .toggleStyle(.checkbox)
+                .controlSize(.small)
             }
             .frame(maxHeight: .infinity)
             Divider()
             HStack {
                 Spacer()
                 Button("Done") { store.route = .list }
+                    .buttonStyle(.borderless)
+                    .font(.system(size: 11))
                     .keyboardShortcut(.defaultAction)
             }
             .padding(.horizontal, 12)
-            .frame(height: 40)
+            .frame(height: Layout.footerHeight)
         }
         .onAppear { pathDraft = store.settings.mutagenPath }
+        .onExitCommand { store.route = .list }
     }
 
     private var header: some View {
-        HStack {
-            Button { store.route = .list } label: {
-                Label("Back", systemImage: "chevron.left").font(.system(size: 11))
-            }
-            .buttonStyle(.borderless)
-            Spacer()
-            Text("Settings").font(.system(size: 13, weight: .semibold))
-            Spacer()
-            Label("Back", systemImage: "chevron.left").font(.system(size: 11)).opacity(0)
+        PanelHeader(title: "Settings") {
+            store.route = .list
         }
-        .padding(.horizontal, 12)
-        .frame(height: 40)
     }
 }
