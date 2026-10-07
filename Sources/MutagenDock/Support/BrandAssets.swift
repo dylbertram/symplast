@@ -15,13 +15,46 @@ enum BrandAssets {
         return nil
     }
 
-    /// A template copy sized for the menu bar (auto-tinted by the system).
-    static func menuBarImage(height: CGFloat = 18) -> NSImage? {
-        guard let base = logo()?.copy() as? NSImage else { return nil }
-        base.isTemplate = true
+    /// The logo natively sized for the menu bar. With no tint it is a template
+    /// image (auto-tinted by the system); with a tint the colour is baked in,
+    /// which is more reliable than `contentTintColor` for status items.
+    static func menuBarImage(height: CGFloat = 18, tint: NSColor? = nil) -> NSImage? {
+        guard let base = logo() else { return nil }
         let aspect = base.size.height > 0 ? base.size.width / base.size.height : 1
-        base.size = NSSize(width: (height * aspect).rounded(), height: height)
-        return base
+        let pointSize = NSSize(width: (height * aspect).rounded(), height: height)
+
+        guard let tint else {
+            let image = (base.copy() as? NSImage) ?? base
+            image.isTemplate = true
+            image.size = pointSize
+            return image
+        }
+
+        let scale: CGFloat = 2
+        let pixelSize = NSSize(width: pointSize.width * scale, height: pointSize.height * scale)
+        guard let rep = NSBitmapImageRep(
+            bitmapDataPlanes: nil,
+            pixelsWide: Int(pixelSize.width),
+            pixelsHigh: Int(pixelSize.height),
+            bitsPerSample: 8,
+            samplesPerPixel: 4,
+            hasAlpha: true,
+            isPlanar: false,
+            colorSpaceName: .deviceRGB,
+            bytesPerRow: 0,
+            bitsPerPixel: 0
+        ) else { return nil }
+
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
+        base.draw(in: NSRect(origin: .zero, size: pixelSize))
+        tint.set()
+        NSRect(origin: .zero, size: pixelSize).fill(using: .sourceAtop)
+        NSGraphicsContext.restoreGraphicsState()
+
+        let image = NSImage(size: pointSize)
+        image.addRepresentation(rep)
+        return image
     }
 }
 

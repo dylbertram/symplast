@@ -43,7 +43,11 @@ struct SessionRowView: View {
                         .help(session.beta.displayName)
                 }
 
-                if session.isConnected {
+                if !session.isPaused && !session.isConnected {
+                    Text(disconnectedDetail)
+                        .font(.system(size: 10))
+                        .foregroundStyle(.red.opacity(0.85))
+                } else {
                     let summary = Format.contents(
                         directories: session.alpha.directories,
                         files: session.alpha.files,
@@ -54,10 +58,6 @@ struct SessionRowView: View {
                             .font(.system(size: 10))
                             .foregroundStyle(.tertiary)
                     }
-                } else if !session.alpha.isConnected || !session.beta.isConnected {
-                    Text(disconnectedDetail)
-                        .font(.system(size: 10))
-                        .foregroundStyle(.red.opacity(0.85))
                 }
             }
 
@@ -78,29 +78,27 @@ struct SessionRowView: View {
     }
 
     private var trailingControls: some View {
-        HStack(spacing: 2) {
+        HStack(spacing: 4) {
             if store.isBusy(session) {
                 ProgressView()
                     .controlSize(.small)
-                    .scaleEffect(0.7)
-                    .frame(width: 22, height: 22)
+                    .scaleEffect(0.6)
+                    .frame(width: 20, height: 20)
             } else {
-                Button {
+                IconControl(
+                    symbol: session.isPaused ? "play.fill" : "pause.fill",
+                    help: session.isPaused ? "Resume session" : "Pause session"
+                ) {
                     store.togglePause(session)
-                } label: {
-                    Image(systemName: session.isPaused ? "play.fill" : "pause.fill")
                 }
-                .buttonStyle(.borderless)
-                .help(session.isPaused ? "Resume session" : "Pause session")
 
-                Button {
+                IconControl(
+                    symbol: "arrow.clockwise",
+                    help: "Force a sync cycle",
+                    disabled: session.isPaused
+                ) {
                     store.flush(session)
-                } label: {
-                    Image(systemName: "arrow.clockwise")
                 }
-                .buttonStyle(.borderless)
-                .help("Force a sync cycle")
-                .disabled(session.isPaused)
             }
 
             Menu {
@@ -126,12 +124,14 @@ struct SessionRowView: View {
                 }
             } label: {
                 Image(systemName: "ellipsis.circle")
+                    .font(.system(size: 13))
+                    .frame(width: 20, height: 20)
+                    .contentShape(Rectangle())
             }
             .menuStyle(.borderlessButton)
             .menuIndicator(.hidden)
-            .fixedSize()
+            .help("More actions")
         }
-        .font(.system(size: 12))
         .foregroundStyle(.secondary)
     }
 
@@ -152,5 +152,27 @@ struct SessionRowView: View {
         if alert.runModal() == .alertFirstButtonReturn {
             store.terminate(session)
         }
+    }
+}
+
+/// A borderless icon button with a consistent 20×20 hit area so the row's
+/// controls line up evenly.
+private struct IconControl: View {
+    let symbol: String
+    let help: String
+    var disabled: Bool = false
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 13))
+                .frame(width: 20, height: 20)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.borderless)
+        .foregroundStyle(.secondary)
+        .disabled(disabled)
+        .help(help)
     }
 }

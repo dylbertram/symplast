@@ -14,7 +14,7 @@ struct MenuContentView: View {
                 SettingsView(store: store)
             }
         }
-        .frame(width: Layout.panelWidth, height: Layout.panelHeight)
+        .frame(width: Layout.panelWidth)
     }
 
     // MARK: - List

@@ -48,14 +48,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         popover.behavior = .transient
         popover.animates = false
-        popover.contentSize = NSSize(width: Layout.panelWidth, height: Layout.panelHeight)
-        popover.contentViewController = NSHostingController(rootView: MenuContentView(store: store))
+        let controller = NSHostingController(rootView: MenuContentView(store: store))
+        // We drive the popover size ourselves; stop the hosting controller from
+        // reporting a (collapsed) intrinsic height for the scroll content.
+        controller.sizingOptions = []
+        popover.contentViewController = controller
+        popover.contentSize = currentPopoverSize()
     }
 
     private func observeStore() {
         store.objectWillChange
             .sink { [weak self] _ in
-                DispatchQueue.main.async { self?.updateStatusItem() }
+                DispatchQueue.main.async {
+                    self?.updateStatusItem()
+                    self?.updatePopoverSize()
+                }
             }
             .store(in: &cancellables)
     }
@@ -63,22 +70,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func updateStatusItem() {
         guard let button = statusItem?.button else { return }
 
-        if let image = BrandAssets.menuBarImage(height: 18) {
+        let tint: NSColor?
+        switch store.worstState {
+        case .disconnected, .error: tint = .systemRed
+        case .paused: tint = .systemGray
+        default: tint = nil
+        }
+
+        if let image = BrandAssets.menuBarImage(height: 18, tint: tint) {
             button.image = image
+            button.contentTintColor = nil
         } else if let fallback = NSImage(systemSymbolName: store.worstState.menuBarSymbol,
                                          accessibilityDescription: "MutagenDock") {
             fallback.isTemplate = true
             button.image = fallback
-        }
-
-        // The logo is a template image, so tint it to signal state.
-        switch store.worstState {
-        case .disconnected, .error:
-            button.contentTintColor = .systemRed
-        case .paused:
-            button.contentTintColor = .systemOrange
-        default:
-            button.contentTintColor = nil
+            button.contentTintColor = tint
         }
 
         if store.settings.showCount, !store.sessions.isEmpty {
@@ -87,6 +93,41 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             button.title = ""
         }
         button.toolTip = tooltip
+    }
+
+    // MARK: - Popover sizing
+
+    private func updatePopoverSize() {
+        let size = currentPopoverSize()
+        if popover.contentSize != size {
+            popover.contentSize = size
+        }
+    }
+
+    private func currentPopoverSize() -> NSSize {
+        NSSize(width: Layout.panelWidth, height: currentPopoverHeight())
+    }
+
+    /// A snug, content-hugging height for the list, and roomier fixed heights
+    /// for the forms. Assigned explicitly so the popover both grows and shrinks.
+    private func currentPopoverHeight() -> CGFloat {
+        switch store.route {
+        case .newSession, .settings:
+            return 540
+        case .list:
+            let sessionCount = store.sessions.count
+            let savedCount = store.stoppedDefinitions.count
+            if sessionCount + savedCount == 0 { return 240 }
+
+            var height: CGFloat = 40 + 40 + 2 // header + footer + dividers
+            if sessionCount > 0 { height += 24 }
+            if savedCount > 0 { height += 24 }
+            height += CGFloat(sessionCount) * 70
+            height += CGFloat(savedCount) * 58
+            if !store.daemonAvailable { height += 96 }
+            if store.lastError != nil && store.daemonAvailable { height += 34 }
+            return min(600, max(180, height))
+        }
     }
 
     private var tooltip: String {
