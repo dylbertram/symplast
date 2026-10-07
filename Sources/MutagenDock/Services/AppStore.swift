@@ -7,6 +7,7 @@ final class AppStore: ObservableObject {
     @Published private(set) var saved: [SavedSession] = []
     @Published private(set) var daemonAvailable = true
     @Published private(set) var isRefreshing = false
+    @Published private(set) var isManualRefreshing = false
     @Published private(set) var busySessionIDs: Set<String> = []
     @Published var lastError: String?
     @Published var route: PanelRoute = .list
@@ -99,6 +100,14 @@ final class AppStore: ObservableObject {
     #endif
 
     // MARK: - Refresh
+
+    /// Refresh on behalf of a user action. Only this path shows a spinner, so
+    /// the background poll does not flash the header every few seconds.
+    func refreshNow() async {
+        isManualRefreshing = true
+        defer { isManualRefreshing = false }
+        await refresh()
+    }
 
     func refresh() async {
         guard let client else {
