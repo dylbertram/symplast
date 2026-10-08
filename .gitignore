@@ -16,3 +16,7 @@ dist/
 .wrangler/
 __pycache__/
 .openchamber/screenshots/
+site/node_modules/
+site/.svelte-kit/
+site/static/assets/
+site/src/lib/generated/
