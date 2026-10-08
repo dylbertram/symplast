@@ -6,6 +6,7 @@ on:
     paths:
       - "site/**"
       - "scripts/build-site.py"
+      - "scripts/verify-site.py"
       - "docs/images/**"
       - "Resources/App*.png"
       - ".github/workflows/pages.yml"
@@ -37,6 +38,13 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+      - name: Install website dependencies
+        run: npm ci --prefix site
       - name: Resolve public download availability and build
         env:
           GH_TOKEN: ${{ github.token }}
@@ -56,6 +64,8 @@ jobs:
           if [[ "$HOMEBREW_READY" == "true" ]]; then args+=(--homebrew-ready); fi
           python3 scripts/build-site.py "${args[@]}"
           python3 -m unittest discover -s tests-release -v
+          npm run check --prefix site
+          python3 scripts/verify-site.py
       - name: Deploy the static directory only
         uses: cloudflare/wrangler-action@v4
         with:

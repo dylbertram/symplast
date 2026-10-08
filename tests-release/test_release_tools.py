@@ -111,49 +111,72 @@ class ReleaseToolsTests(unittest.TestCase):
                            for name in ["Symplast-1.2.3-bundled.dmg", "Symplast-1.2.3.dmg", "SHA256SUMS"]]}
 
     def test_no_release_does_not_advertise_download_or_brew(self):
-        values = site.substitutions(homebrew_ready=True)
-        self.assertIn("Coming soon", values["HERO_CTA"])
-        self.assertNotIn("brew install", values["HOMEBREW"])
-        self.assertNotIn(".dmg", values["DOWNLOADS"])
+        values = site.release_data(homebrew_ready=True)
+        self.assertFalse(values["available"])
+        self.assertFalse(values["homebrew_ready"])
+        self.assertIsNone(values["download"])
 
     def test_public_release_enables_the_exact_versioned_download(self):
-        values = site.substitutions(self.release(), homebrew_ready=True)
-        self.assertIn("/v1.2.3/Symplast-1.2.3-bundled.dmg", values["HERO_CTA"])
-        self.assertIn("brew install --cask dylbertram/symplast/symplast", values["HOMEBREW"])
-        self.assertIn("not notarized", values["SIGNING_NOTICE"])
-        self.assertIn("Recommended easy install", values["DOWNLOADS"])
-        self.assertIn('/v1.2.3/Symplast-1.2.3.dmg"', values["DOWNLOADS"])
-        self.assertIn("without Mutagen", values["DOWNLOADS"])
+        values = site.release_data(self.release(), homebrew_ready=True)
+        self.assertEqual(values["download"], f"{site.REPOSITORY}/releases/download/v1.2.3/Symplast-1.2.3-bundled.dmg")
+        self.assertEqual(values["app_only_download"], f"{site.REPOSITORY}/releases/download/v1.2.3/Symplast-1.2.3.dmg")
+        self.assertTrue(values["homebrew_ready"])
+        self.assertFalse(values["notarized"])
 
     def test_both_dmg_options_must_exist_before_advertising_downloads(self):
         for missing in ["Symplast-1.2.3.dmg", "Symplast-1.2.3-bundled.dmg"]:
             release = self.release()
             release["assets"] = [asset for asset in release["assets"] if asset["name"] != missing]
-            self.assertIn("Coming soon", site.substitutions(release)["HERO_CTA"])
+            self.assertFalse(site.release_data(release)["available"])
+
+    def test_download_icons_are_decorative_and_links_keep_text_labels(self):
+        class Icons(HTMLParser):
+            def __init__(self):
+                super().__init__()
+                self.icons = []
+            def handle_starttag(self, tag, attrs):
+                if tag == "svg":
+                    self.icons.append(dict(attrs))
+        button = (ROOT / "site/src/lib/DownloadButton.svelte").read_text()
+        html = (ROOT / "site/src/routes/+page.svelte").read_text()
+        self.assertIn("Download for macOS", button)
+        self.assertIn("Direct download", html)
+        self.assertIn("Download app only (without Mutagen)", html)
+        parser = Icons()
+        parser.feed((ROOT / "site/src/lib/Icon.svelte").read_text())
+        self.assertEqual(len(parser.icons), 1)
+        for icon in parser.icons:
+            self.assertEqual(icon.get("aria-hidden"), "true")
+            self.assertEqual(icon.get("focusable"), "false")
 
     def test_brew_not_advertised_until_tap_is_ready(self):
-        values = site.substitutions(self.release())
-        self.assertNotIn("brew install", values["HOMEBREW"])
+        self.assertFalse(site.release_data(self.release())["homebrew_ready"])
 
     def test_drafts_prereleases_and_incomplete_assets_are_not_downloadable(self):
         for change in [{"draft": True}, {"prerelease": True}, {"assets": []}, {"tag_name": "v1.2.3-beta"}]:
             release = self.release()
             release.update(change)
-            self.assertIn("Coming soon", site.substitutions(release)["HERO_CTA"])
+            self.assertFalse(site.release_data(release)["available"])
 
     def test_untrusted_download_urls_are_not_used(self):
         release = self.release()
         release["assets"][0]["browser_download_url"] = 'javascript:alert("hello")'
-        self.assertIn("Coming soon", site.substitutions(release)["HERO_CTA"])
+        self.assertFalse(site.release_data(release)["available"])
 
     def test_signed_notice_requires_explicit_notarized_marker(self):
         release = self.release()
         release["body"] = "signed"
-        self.assertIn("not notarized", site.substitutions(release)["SIGNING_NOTICE"])
+        self.assertFalse(site.release_data(release)["notarized"])
         release["body"] = "<!-- symplast-distribution: notarized -->"
-        self.assertIn("signed and notarized", site.substitutions(release)["SIGNING_NOTICE"])
+        self.assertTrue(site.release_data(release)["notarized"])
 
-    def test_template_tokens_and_local_links_resolve_in_both_states(self):
+    def test_site_copy_focuses_on_convenience(self):
+        for name in ["routes/+page.svelte", "lib/Footer.svelte"]:
+            html = (ROOT / "site/src" / name).read_text()
+            for retired_copy in ["quiet", "Make yourself", "A note about", "SIGNING_NOTICE", "Everyday controls", "Your sessions, at a glance", "Less to remember"]:
+                self.assertNotIn(retired_copy, html)
+
+    def test_local_fragment_links_resolve(self):
         class Links(HTMLParser):
             def __init__(self):
                 super().__init__()
@@ -164,27 +187,21 @@ class ReleaseToolsTests(unittest.TestCase):
                     self.ids.add(attrs["id"])
                 if attrs.get("href", "").startswith("#"):
                     self.fragments.add(attrs["href"][1:])
-        for release in [None, self.release()]:
-            html = (ROOT / "site/index.html").read_text()
-            for key, value in site.substitutions(release, True).items():
-                html = html.replace(f"@@{key}@@", value)
-            self.assertNotIn("@@", html)
-            parser = Links()
-            parser.feed(html)
-            self.assertTrue(parser.fragments.issubset(parser.ids))
-            self.assertNotIn("<script", html)
+        html = (ROOT / "site/src/routes/+page.svelte").read_text()
+        html += (ROOT / "site/src/routes/+layout.svelte").read_text()
+        parser = Links()
+        parser.feed(html)
+        self.assertTrue(parser.fragments.issubset(parser.ids))
 
     def test_only_allowlisted_site_files_can_be_uploaded(self):
-        self.assertNotIn(".env", site.SITE_FILES)
-        self.assertNotIn("release.env", site.SITE_FILES)
-        self.assertEqual(set(site.SITE_FILES), {"index.html", "style.css", "privacy.html", "_headers", "_redirects", "robots.txt", "sitemap.xml"})
+        self.assertEqual(set(site.STATIC_FILES), {"_headers", "_redirects", "robots.txt", "sitemap.xml"})
+        self.assertEqual(set((ROOT / "site/static").iterdir()) - {ROOT / "site/static/assets"},
+                         {ROOT / "site/static" / name for name in site.STATIC_FILES})
 
     def test_site_build_never_copies_accidental_private_files(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             (root / "site").mkdir()
-            for name in site.SITE_FILES:
-                (root / "site" / name).write_text((ROOT / "site" / name).read_text())
             (root / "site/.env").write_text("PRIVATE_TOKEN=do-not-upload")
             (root / "site/private-notes.md").write_text("do-not-upload")
             for name in ["Resources/AppLogo.png", "Resources/AppIcon-1024.png",
@@ -193,12 +210,16 @@ class ReleaseToolsTests(unittest.TestCase):
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_bytes(b"fixture")
             with patch.object(site, "ROOT", root):
-                site.build()
-            output = root / "dist/site"
+                release = self.release()
+                release["private_token"] = "do-not-upload"
+                site.prepare(release)
+            output = root / "site/static"
             self.assertFalse((output / ".env").exists())
             self.assertFalse((output / "private-notes.md").exists())
             self.assertTrue((output / "assets/app-icon.png").exists())
-            self.assertNotIn("@@", (output / "index.html").read_text())
+            data = (root / "site/src/lib/generated/release.json").read_text()
+            self.assertNotIn("do-not-upload", data)
+            self.assertEqual(json.loads(data), site.release_data(release))
 
     def test_cask_uses_final_dmg_hash_and_warns_for_ad_hoc_builds(self):
         with tempfile.TemporaryDirectory() as temp:
