@@ -1,6 +1,6 @@
-// Builds an app-icon PNG from the white Mutagen mark: a rounded "squircle"
+// Builds an app-icon PNG from the white app mark: a rounded "squircle"
 // tile with a subtle dark gradient and the mark centred on it.
-//   swift scripts/make-icon.swift Resources/MutagenLogo.png Resources/AppIcon-1024.png 1024
+//   swift scripts/make-icon.swift Resources/AppLogo.png Resources/AppIcon-1024.png 1024
 import AppKit
 import CoreGraphics
 import Foundation

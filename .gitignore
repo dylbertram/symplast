@@ -4,3 +4,15 @@ build/
 *.xcodeproj
 .swiftpm/
 .report/
+*.af
+*.af~lock~
+dist/
+.env
+.env.*
+/release.env
+*.p12
+*.p8
+*.keychain-db
+.wrangler/
+__pycache__/
+.openchamber/screenshots/

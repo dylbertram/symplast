@@ -10,10 +10,10 @@ struct UIPreview {
         let app = NSApplication.shared
         app.setActivationPolicy(.prohibited)
         let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
-        NSImage(contentsOf: root.appendingPathComponent("Resources/MutagenLogo.png"))?.setName("MutagenLogo")
+        NSImage(contentsOf: root.appendingPathComponent("Resources/AppLogo.png"))?.setName("AppLogo")
         let output = URL(fileURLWithPath: CommandLine.arguments[1], isDirectory: true)
         try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
-        let suite = "MutagenDock.UIPreview.\(UUID().uuidString)"
+        let suite = "Symplast.UIPreview.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
         let publicPreview = CommandLine.arguments.contains("--public")
@@ -137,7 +137,7 @@ struct UIPreview {
             store.setPreviewSessions([], daemonAvailable: false)
             try capture("daemon-unavailable")
             store.setPreviewSessions([fixtures[0]])
-            store.lastError = "Could not complete the sync cycle. Check your SSH connection and try again."
+            store.lastError = "mutagen sync create failed: unable to connect to beta: unable to connect to endpoint: unable to dial agent endpoint: unable to handshake with agent process: unable to receive server magic number: EOF (error output: admin@192.168.20.20: Permission denied (publickey,keyboard-interactive).)"
             try capture("error")
             store.lastError = nil
             store.beginNewSession()

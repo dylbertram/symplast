@@ -1,0 +1,163 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Existing release tag version, e.g. 0.1.0 (without v)"
+        required: true
+        type: string
+      signing:
+        description: "Public releases must be notarized; ad-hoc is for testing only"
+        required: true
+        type: choice
+        default: notarized
+        options: [notarized, ad-hoc]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.event.inputs.version || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: macos-14
+    timeout-minutes: 90
+    environment: release
+    permissions:
+      contents: write
+    env:
+      INPUT_VERSION: ${{ inputs.version }}
+      RELEASE_SIGNING: ${{ inputs.signing || 'notarized' }}
+      CODESIGN_IDENTITY: ${{ secrets.MACOS_CODESIGN_IDENTITY }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Resolve and check out the immutable release tag
+        run: |
+          set -euo pipefail
+          VERSION="${INPUT_VERSION:-${GITHUB_REF_NAME#v}}"
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Version must be x.y.z" >&2; exit 1; }
+          TAG="v$VERSION"
+          git rev-parse --verify "refs/tags/$TAG"
+          git checkout --detach "$TAG"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "TAG=$TAG" >> "$GITHUB_ENV"
+
+      - name: Refuse to overwrite an existing release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "A release already exists for $TAG. Review it instead of replacing its checksums." >&2
+            exit 1
+          fi
+
+      - name: Require the tag to be contained in main
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # main is protected (PR + CI + linear history), so a commit reachable
+          # from main is reviewed code. Refuse tags that point anywhere else.
+          status="$(gh api "repos/$GITHUB_REPOSITORY/compare/main...$TAG" --jq .status)"
+          case "$status" in
+            identical|behind) ;;
+            *) echo "::error::Refusing to release $TAG: not contained in the protected main branch (compare status: $status)." >&2; exit 1 ;;
+          esac
+
+      - name: Test
+        run: swift test
+
+      - name: Require signing configuration for public releases
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [[ "$RELEASE_SIGNING" == "ad-hoc" ]]; then
+            echo "CODESIGN_IDENTITY=-" >> "$GITHUB_ENV"
+            echo "Testing-only draft: this build will not be notarized."
+          else
+            : "${CODESIGN_IDENTITY:?Configure the Developer ID Application identity}"
+            [[ "$CODESIGN_IDENTITY" != "-" ]] || exit 1
+            : "${APPLE_ID:?Configure notarization credentials}"
+            : "${APPLE_TEAM_ID:?Configure the Apple Team ID}"
+            : "${APPLE_APP_PASSWORD:?Configure an app-specific notarization password}"
+          fi
+
+      - name: Import signing certificate (optional)
+        if: env.CODESIGN_IDENTITY != '' && env.CODESIGN_IDENTITY != '-'
+        env:
+          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PWD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
+          KEYCHAIN_PWD: ${{ secrets.KEYCHAIN_PWD }}
+        run: |
+          set -euo pipefail
+          : "${MACOS_CERTIFICATE:?Missing signing certificate}"
+          : "${MACOS_CERTIFICATE_PWD:?Missing certificate password}"
+          : "${KEYCHAIN_PWD:?Missing temporary keychain password}"
+          KEYCHAIN_PATH="$RUNNER_TEMP/app-signing.keychain-db"
+          printf '%s' "$MACOS_CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security create-keychain -p "$KEYCHAIN_PWD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PWD" "$KEYCHAIN_PATH"
+          security import "$RUNNER_TEMP/cert.p12" -P "$MACOS_CERTIFICATE_PWD" -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PWD" "$KEYCHAIN_PATH"
+          security list-keychain -d user -s "$KEYCHAIN_PATH"
+
+      - name: Read pinned Go toolchain version
+        id: mutagen
+        run: |
+          echo "go-version=$(python3 -c 'import json; print(json.load(open("scripts/mutagen-source.json"))["go_version"])')" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: ${{ steps.mutagen.outputs.go-version }}
+          cache: false
+
+      - name: Build non-SSPL universal Mutagen and all agents from pinned source
+        run: bash scripts/fetch-mutagen.sh
+
+      - name: Package universal apps and final checksums
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        run: bash scripts/package-release.sh
+
+      - name: Verify disk images
+        run: |
+          args=()
+          if [[ "$RELEASE_SIGNING" == "notarized" ]]; then args+=(--notarized); fi
+          python3 scripts/verify-release.py "$VERSION" ${args[@]+"${args[@]}"}
+          ruby -c dist/symplast.rb
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: symplast-${{ env.VERSION }}
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Create reviewable draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag --draft \
+            --title "Symplast $VERSION" --notes-file dist/RELEASE-NOTES.md --generate-notes \
+            dist/*.dmg dist/SHA256SUMS dist/symplast.rb
+
+      - name: Clean up signing material
+        if: always() && env.CODESIGN_IDENTITY != '' && env.CODESIGN_IDENTITY != '-'
+        run: |
+          security delete-keychain "$RUNNER_TEMP/app-signing.keychain-db" || true
+          rm -f "$RUNNER_TEMP/cert.p12"

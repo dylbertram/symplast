@@ -1,0 +1,10 @@
+--- a/scripts/build.go
++++ b/scripts/build.go
+@@ -353,6 +353,6 @@
+ 	// Define Windows targets.
+ 	{"windows", "386"},
+ 	{"windows", "amd64"},
+-	{"windows", "arm"},
++	// windows/arm was removed from Go 1.26; retain windows/arm64 below.
+ 	{"windows", "arm64"},
+ }
