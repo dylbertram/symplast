@@ -1,0 +1,8 @@
+# Default code owner for every path. Review is enforced through branch
+# protection; these entries also drive automatic review requests.
+*                   @dylbertram
+
+# Sensitive paths: workflow changes can access release-signing and deployment
+# credentials, and the release scripts produce signed artifacts.
+/.github/           @dylbertram
+/scripts/           @dylbertram

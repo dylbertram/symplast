@@ -1,0 +1,65 @@
+name: Publish website
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "site/**"
+      - "scripts/build-site.py"
+      - "docs/images/**"
+      - "Resources/App*.png"
+      - ".github/workflows/pages.yml"
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: vars.PAGES_ENABLED == 'true' && (github.event_name == 'release' || github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: website
+    permissions:
+      contents: read
+      deployments: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Resolve public download availability and build
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HOMEBREW_READY: ${{ vars.HOMEBREW_READY }}
+        run: |
+          set -euo pipefail
+          args=()
+          private="$(gh api "repos/$GITHUB_REPOSITORY" --jq .private)"
+          if [[ "$private" == "false" ]]; then
+            if gh api "repos/$GITHUB_REPOSITORY/releases/latest" > "$RUNNER_TEMP/latest.json" 2> "$RUNNER_TEMP/release-error"; then
+              args+=(--release-metadata "$RUNNER_TEMP/latest.json")
+            elif ! grep -q 'HTTP 404' "$RUNNER_TEMP/release-error"; then
+              cat "$RUNNER_TEMP/release-error" >&2
+              exit 1
+            fi
+          fi
+          if [[ "$HOMEBREW_READY" == "true" ]]; then args+=(--homebrew-ready); fi
+          python3 scripts/build-site.py "${args[@]}"
+          python3 -m unittest discover -s tests-release -v
+      - name: Deploy the static directory only
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist/site --project-name=symplast --branch=main
+          gitHubToken: ${{ github.token }}

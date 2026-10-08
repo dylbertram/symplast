@@ -3,19 +3,19 @@
 <plist version="1.0">
 <dict>
     <key>CFBundleName</key>
-    <string>MutagenDock</string>
+    <string>Symplast</string>
     <key>CFBundleDisplayName</key>
-    <string>Mutagen Dock</string>
+    <string>Symplast</string>
     <key>CFBundleIdentifier</key>
-    <string>com.dylanbertram.mutagendock</string>
+    <string>com.dylanbertram.symplast</string>
     <key>CFBundleExecutable</key>
-    <string>MutagenDock</string>
+    <string>Symplast</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.0.0</string>
+    <string>0.1.0</string>
     <key>CFBundleVersion</key>
-    <string>1</string>
+    <string>0.1.0</string>
     <key>CFBundleIconFile</key>
     <string>AppIcon</string>
     <key>CFBundleInfoDictionaryVersion</key>
@@ -27,6 +27,6 @@
     <key>NSHighResolutionCapable</key>
     <true/>
     <key>NSHumanReadableCopyright</key>
-    <string>MutagenDock</string>
+    <string>Symplast. Works with Mutagen. Not affiliated with or endorsed by Mutagen or Docker, Inc.</string>
 </dict>
 </plist>

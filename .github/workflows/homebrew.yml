@@ -1,0 +1,74 @@
+name: Publish Homebrew cask
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Published release tag, e.g. v0.1.0"
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: homebrew-tap
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: vars.HOMEBREW_TAP != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: homebrew
+    env:
+      RELEASE_TAG: ${{ inputs.tag || github.event.release.tag_name }}
+      TAP_REPOSITORY: ${{ vars.HOMEBREW_TAP }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Validate published release and download exact artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || exit 1
+          [[ "$TAP_REPOSITORY" =~ ^[A-Za-z0-9_.-]+/homebrew-[A-Za-z0-9_.-]+$ ]] || exit 1
+          [[ "$(gh api "repos/$GITHUB_REPOSITORY" --jq .private)" == "false" ]] || { echo "Public downloads require a public release repository" >&2; exit 1; }
+          [[ "$(curl -fsSL "https://api.github.com/repos/$TAP_REPOSITORY" | jq -r .private)" == "false" ]] || { echo "The Homebrew tap must be public for anonymous installs" >&2; exit 1; }
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG" > "$RUNNER_TEMP/release.json"
+          [[ "$(jq -r '.draft or .prerelease' "$RUNNER_TEMP/release.json")" == "false" ]] || exit 1
+          # Do not let a late rerun downgrade the tap.
+          [[ "$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq .tag_name)" == "$RELEASE_TAG" ]] || { echo "Only the latest stable release may update the tap" >&2; exit 1; }
+          mkdir -p dist
+          gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --dir dist \
+            --pattern "Symplast-${RELEASE_TAG#v}-bundled.dmg" --pattern SHA256SUMS --pattern symplast.rb
+          (cd dist && sha256sum --check --ignore-missing SHA256SUMS)
+          args=()
+          if grep -q '<!-- symplast-distribution: notarized -->' "$RUNNER_TEMP/release.json"; then args+=(--notarized); fi
+          python3 scripts/generate-cask.py "${RELEASE_TAG#v}" "dist/Symplast-${RELEASE_TAG#v}-bundled.dmg" \
+            --output dist/verified.rb "${args[@]}"
+          cmp dist/symplast.rb dist/verified.rb
+          ruby -c dist/symplast.rb
+      - name: Check out the public tap
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ vars.HOMEBREW_TAP }}
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          path: tap
+      - name: Update cask
+        working-directory: tap
+        run: |
+          set -euo pipefail
+          mkdir -p Casks
+          cp ../dist/symplast.rb Casks/symplast.rb
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Casks/symplast.rb
+          if ! git diff --cached --quiet; then
+            git commit -m "symplast ${RELEASE_TAG#v}"
+            git push
+          fi

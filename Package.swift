@@ -2,18 +2,18 @@
 import PackageDescription
 
 let package = Package(
-    name: "MutagenDock",
+    name: "Symplast",
     platforms: [
         .macOS(.v14)
     ],
     products: [
-        .executable(name: "MutagenDock", targets: ["MutagenDock"])
+        .executable(name: "Symplast", targets: ["Symplast"])
     ],
     targets: [
         .executableTarget(
-            name: "MutagenDock",
-            path: "Sources/MutagenDock"
+            name: "Symplast",
+            path: "Sources/Symplast"
         ),
-        .testTarget(name: "MutagenDockTests", dependencies: ["MutagenDock"])
+        .testTarget(name: "SymplastTests", dependencies: ["Symplast"])
     ]
 )
