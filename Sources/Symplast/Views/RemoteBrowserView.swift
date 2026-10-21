@@ -8,6 +8,7 @@ struct RemoteBrowserView: View {
     let target: AppStore.RemoteBrowseTarget
 
     @State private var currentPath: String
+    @State private var pathText: String
     @State private var entries: [String] = []
     @State private var isLoading = false
     @State private var error: String?
@@ -15,7 +16,9 @@ struct RemoteBrowserView: View {
     init(store: AppStore, target: AppStore.RemoteBrowseTarget) {
         self.store = store
         self.target = target
-        _currentPath = State(initialValue: target.path.trimmingCharacters(in: .whitespaces))
+        let path = target.path.trimmingCharacters(in: .whitespaces)
+        _currentPath = State(initialValue: path)
+        _pathText = State(initialValue: path)
     }
 
     var body: some View {
@@ -36,6 +39,7 @@ struct RemoteBrowserView: View {
             footer
         }
         .onAppear { Task { await load() } }
+        .controlSize(.small)
     }
 
     // MARK: - Header rows
@@ -63,22 +67,20 @@ struct RemoteBrowserView: View {
 
     private var pathRow: some View {
         HStack(spacing: 6) {
-            Image(systemName: "folder")
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
-            Text(currentPath.isEmpty ? "Home folder" : currentPath)
+            TextField("Remote home folder", text: $pathText)
+                .textFieldStyle(.roundedBorder)
                 .font(.system(size: 11, design: .monospaced))
-                .lineLimit(1)
-                .truncationMode(.middle)
-                .help(currentPath.isEmpty ? "The home folder on the server" : currentPath)
-            Spacer()
+                .accessibilityLabel("Remote folder path")
+                .help("Type or paste a path and press Return to open it")
+                .onSubmit { go(to: pathText) }
+                .disabled(isLoading)
             PanelIconButton(symbol: "arrow.up", label: "Go to parent folder",
                             disabled: isLoading || isAtRoot) {
                 goUp()
             }
         }
         .padding(.horizontal, 12)
-        .frame(height: Layout.sectionHeight)
+        .frame(height: Layout.sectionHeight + 6)
     }
 
     // MARK: - Listing
@@ -147,10 +149,12 @@ struct RemoteBrowserView: View {
                 .keyboardShortcut(.cancelAction)
                 .disabled(isLoading)
             Spacer()
-            Button("Use this folder") { store.finishRemoteBrowse(selecting: currentPath) }
-                .buttonStyle(.bordered)
-                .keyboardShortcut(.defaultAction)
-                .disabled(isLoading || currentPath.isEmpty)
+            Button("Use this folder") {
+                store.finishRemoteBrowse(selecting: selectedPath)
+            }
+            .buttonStyle(.bordered)
+            .keyboardShortcut(.defaultAction)
+            .disabled(isLoading || selectedPath.isEmpty)
         }
         .controlSize(.small)
         .padding(.horizontal, 12)
@@ -164,18 +168,30 @@ struct RemoteBrowserView: View {
         return user.isEmpty ? target.host : "\(user)@\(target.host)"
     }
 
+    /// What the confirm button applies: the typed path wins, so a manually
+    /// entered folder can be used without opening it first.
+    private var selectedPath: String {
+        let typed = pathText.trimmingCharacters(in: .whitespaces)
+        return typed.isEmpty ? currentPath : typed
+    }
+
     private var isAtRoot: Bool {
         currentPath.isEmpty || currentPath == "/"
     }
 
     private func open(_ entry: String) {
-        currentPath = entry
-        Task { await load() }
+        go(to: entry)
     }
 
     private func goUp() {
         let parent = (currentPath as NSString).deletingLastPathComponent
-        currentPath = parent.isEmpty ? "/" : parent
+        go(to: parent.isEmpty ? "/" : parent)
+    }
+
+    /// Open a clicked folder or a manually typed path.
+    private func go(to path: String) {
+        currentPath = path.trimmingCharacters(in: .whitespaces)
+        pathText = currentPath
         Task { await load() }
     }
 
@@ -186,9 +202,10 @@ struct RemoteBrowserView: View {
         do {
             let client = SSHRemoteClient(user: target.user, host: target.host, port: target.port)
             let listing = try await client.list(at: currentPath)
-            if !listing.path.isEmpty, listing.path != currentPath {
+            if !listing.path.isEmpty {
                 currentPath = listing.path
             }
+            pathText = currentPath
             entries = listing.directories
         } catch {
             entries = []
