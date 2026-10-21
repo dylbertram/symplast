@@ -36,6 +36,10 @@ struct SyncPreviewView: View {
     ]
 
     private let rowCap = 15
+    /// How many additional rows each "… and N more" click reveals.
+    private let revealStep = 50
+    /// Rows currently revealed per group; groups start at `rowCap`.
+    @State private var revealed: [String: Int] = [:]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -126,7 +130,9 @@ struct SyncPreviewView: View {
     }
 
     private func section(_ group: PreviewGroup, entries: [SyncPreview.Entry]) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+        let shown = min(revealed[group.title] ?? rowCap, entries.count)
+        let isFullyShown = shown >= entries.count
+        return VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 5) {
                 Circle()
                     .fill(group.color)
@@ -139,7 +145,7 @@ struct SyncPreviewView: View {
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
             }
-            ForEach(Array(entries.prefix(rowCap).enumerated()), id: \.offset) { _, entry in
+            ForEach(Array(entries.prefix(shown).enumerated()), id: \.offset) { _, entry in
                 HStack(spacing: 8) {
                     Text(entry.path)
                         .font(.system(size: 10, design: .monospaced))
@@ -153,9 +159,29 @@ struct SyncPreviewView: View {
                 }
             }
             if entries.count > rowCap {
-                Text("… and \(Format.number(entries.count - rowCap)) more")
-                    .font(.system(size: 10))
+                Button {
+                    revealed[group.title] = isFullyShown
+                        ? rowCap
+                        : min(shown + revealStep, entries.count)
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: isFullyShown ? "chevron.up" : "chevron.down")
+                            .font(.system(size: 8, weight: .medium))
+                        Text(isFullyShown
+                             ? "Show less"
+                             : "… and \(Format.number(entries.count - shown)) more")
+                            .font(.system(size: 10))
+                    }
                     .foregroundStyle(.secondary)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help(isFullyShown
+                      ? "Collapse back to the first \(rowCap)"
+                      : "Show \(min(revealStep, entries.count - shown)) more")
+                .accessibilityLabel(isFullyShown
+                                    ? "Show less"
+                                    : "Show \(min(revealStep, entries.count - shown)) more")
             }
         }
     }
