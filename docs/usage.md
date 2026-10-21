@@ -10,7 +10,8 @@ file synchronization and continues running if you quit Symplast.
    A target can be another local folder, an SSH destination such as
    `user@example.com:/path/to/folder`, or a supported custom Mutagen URL.
    Folder paths can be typed or pasted (⌘V) into the fields, and copied (⌘C)
-   back out of them.
+   back out of them. For SSH targets, **Browse…** connects to the server and
+   lists its folders so you can pick the path without looking it up first.
 3. Choose a sync mode and review its direction. **Two-way safe** is the default.
    One-way modes ask for a direction — local → remote or remote → local — and
    run **safe** by default: files that exist only on the receiving side are left

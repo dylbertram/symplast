@@ -1,7 +1,7 @@
 import Foundation
 
 /// Screens available in the menu panel.
-enum PanelRoute { case list, newSession, settings }
+enum PanelRoute { case list, newSession, settings, remoteBrowser }
 
 /// Editable state for the New/Edit Session form. It lives in `AppStore` (not in
 /// the view) so that a folder-picker interaction — which briefly dismisses the

@@ -115,6 +115,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         switch store.route {
         case .newSession:
             height = Layout.formHeight
+        case .remoteBrowser:
+            height = Layout.browserHeight
         case .settings:
             height = Layout.settingsHeight
         case .list:

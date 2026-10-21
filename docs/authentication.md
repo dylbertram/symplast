@@ -24,6 +24,12 @@ Step 2 is the important one: GUI launches otherwise get launchd's system agent,
 which usually holds **no identities**, while your real agent (Bitwarden,
 1Password, etc.) is configured in your shell profile.
 
+The **Browse…** button next to the Remote path field runs `ssh` the same way —
+once per click, in the same environment, in batch mode so it can never hang on a
+password or host-key prompt. It lists folders on the server so a path can be
+picked instead of typed, and needs a key your SSH agent can use, exactly like
+the sync itself.
+
 > The daemon is long-lived and inherits the environment of whatever started it.
 > If your agent socket changes (for example a password-manager restart), the
 > running daemon keeps the old socket. Run `mutagen daemon stop` in Terminal, then

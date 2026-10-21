@@ -12,6 +12,10 @@ struct MenuContentView: View {
                 NewSessionView(store: store)
             case .settings:
                 SettingsView(store: store)
+            case .remoteBrowser:
+                if let target = store.remoteBrowseTarget {
+                    RemoteBrowserView(store: store, target: target)
+                }
             }
         }
         .frame(width: Layout.panelWidth)
