@@ -20,7 +20,7 @@
 - Review staged renames and uncommitted app changes before committing.
 - Run `swift test` and `python3 -m unittest discover -s tests-release -v`.
 - Install the exact Go version in `scripts/mutagen-source.json`, then run
-  `bash scripts/fetch-mutagen.sh` and `VERSION=0.1.0 bash scripts/package-release.sh`.
+  `bash scripts/fetch-mutagen.sh` and `VERSION=0.2.0 bash scripts/package-release.sh`.
   For notarized releases set `CODESIGN_IDENTITY` before **both** commands so
   archived macOS agents are signed too.
 - Mount each DMG read-only, inspect the app and Applications shortcut, and test on
@@ -34,7 +34,7 @@
 
 1. Configure [GitHub](README.md#repository-configuration). Enable Actions and
    create the environments.
-2. Push the reviewed `main` branch. Create and push `v0.1.0`; the workflow builds
+2. Push the reviewed `main` branch. Create and push `v0.2.0`; the workflow builds
    a draft.
 3. Inspect the draft artifacts and warning text. Publish the draft **manually**
    only after downloads can be publicly accessed. Never replace a published DMG

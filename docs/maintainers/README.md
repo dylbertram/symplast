@@ -61,8 +61,8 @@ put secret values in workflow YAML, README, git remote URLs, or command examples
 After reviewing and committing all intended files:
 
 ```sh
-git tag -a v0.1.0 -m "Symplast 0.1.0"
-git push origin v0.1.0
+git tag -a v0.2.0 -m "Symplast 0.2.0"
+git push origin v0.2.0
 ```
 
 **Release** runs tests, checks out that exact tag, installs the pinned Go
@@ -70,7 +70,7 @@ version, builds checksum-pinned non-SSPL Mutagen source and all supported agents
 builds universal apps, signs them, notarizes/staples them (unless explicitly
 testing ad-hoc), creates DMGs, and hashes the **final** images. It attaches both
 DMGs, `SHA256SUMS`, and `symplast.rb` to a **draft** GitHub release. A manual run
-accepts `version=0.1.0`, but that tag must already exist; existing releases are
+accepts `version=0.2.0`, but that tag must already exist; existing releases are
 never overwritten.
 
 Publish the reviewed draft in GitHub's UI. That human `release.published` event

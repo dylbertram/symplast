@@ -14,7 +14,7 @@ membership, but Gatekeeper warnings still apply to non-notarized builds.
    environment.
 3. Set repository variable `HOMEBREW_TAP=<owner>/homebrew-symplast`.
 4. Publish a reviewed, stable, **public** app release, or manually run **Publish
-   Homebrew cask** with its tag (e.g. `v0.1.0`). A private app repository cannot
+   Homebrew cask** with its tag (e.g. `v0.2.0`). A private app repository cannot
    serve the cask's anonymous download URL.
 5. The workflow downloads the bundled DMG, checksum list, and generated cask,
    verifies them, regenerates the cask to compare its exact hash/signing notice,
@@ -37,7 +37,7 @@ and rerun **Publish website** to expose the install command.
 For the exact DMG downloaded from a published release:
 
 ```sh
-python3 scripts/generate-cask.py 0.1.0 dist/Symplast-0.1.0-bundled.dmg --output dist/symplast.rb
+python3 scripts/generate-cask.py 0.2.0 dist/Symplast-0.2.0-bundled.dmg --output dist/symplast.rb
 ```
 
 Use `--notarized` **only** for an actually notarized artifact. Copy that cask to
