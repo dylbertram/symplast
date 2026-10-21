@@ -9,6 +9,8 @@ file synchronization and continues running if you quit Symplast.
 2. Choose **New session**, enter a name, and select the local folder and target.
    A target can be another local folder, an SSH destination such as
    `user@example.com:/path/to/folder`, or a supported custom Mutagen URL.
+   Folder paths can be typed or pasted (⌘V) into the fields, and copied (⌘C)
+   back out of them.
 3. Choose a sync mode and review its direction. **Two-way safe** is the default.
    **One-way replica** can overwrite or delete files on the target.
 4. Optionally exclude version-control folders or build output (`node_modules/`,

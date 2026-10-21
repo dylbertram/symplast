@@ -12,6 +12,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
+        // Wire the standard edit key equivalents (⌘X/⌘C/⌘V/⌘A) so copy and
+        // paste work in the session form's text fields.
+        NSApp.mainMenu = AppMenu.build()
         store.start()
         configureStatusItem()
         observeStore()
