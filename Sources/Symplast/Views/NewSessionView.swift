@@ -97,6 +97,11 @@ struct NewSessionView: View {
                                 .help("Excludes node_modules/, target/, build/, bin/ and *.o.")
                         }
                         .font(.system(size: 11))
+                        Text(blockedSummary)
+                            .font(.system(size: 10))
+                            .foregroundStyle(Color.secondary.opacity(0.85))
+                            .fixedSize(horizontal: false, vertical: true)
+                            .textSelection(.enabled)
                         DisclosureGroup("Additional ignore patterns", isExpanded: $showIgnorePatterns) {
                             VStack(alignment: .leading, spacing: 4) {
                                 TextEditor(text: $store.draft.ignoreText)
@@ -110,11 +115,6 @@ struct NewSessionView: View {
                                 Text("Optional · one pattern per line")
                                     .font(.system(size: 10))
                                     .foregroundStyle(Color.secondary.opacity(0.85))
-                                Text(blockedSummary)
-                                    .font(.system(size: 10))
-                                    .foregroundStyle(Color.secondary.opacity(0.85))
-                                    .fixedSize(horizontal: false, vertical: true)
-                                    .textSelection(.enabled)
                             }
                         }
                         .disclosureGroupStyle(FullWidthDisclosureStyle())
