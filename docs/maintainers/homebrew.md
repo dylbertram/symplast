@@ -13,9 +13,12 @@ membership, but Gatekeeper warnings still apply to non-notarized builds.
    tap. Add it as `HOMEBREW_TAP_TOKEN` in this repository's **homebrew**
    environment.
 3. Set repository variable `HOMEBREW_TAP=<owner>/homebrew-symplast`.
-4. Publish a reviewed, stable, **public** app release, or manually run **Publish
-   Homebrew cask** with its tag (e.g. `v0.2.0`). A private app repository cannot
-   serve the cask's anonymous download URL.
+4. Publish a reviewed, stable, **public** app release. Its `release.published`
+   event runs **Publish Homebrew cask** automatically — no manual dispatch is
+   needed. Dispatching the workflow by hand with a tag (e.g. `v0.2.0`) is only a
+   rerun tool for a release that is **already published**; run earlier it fails
+   with `gh: Not Found (HTTP 404)` while looking up `releases/tags/<tag>`. A
+   private app repository cannot serve the cask's anonymous download URL.
 5. The workflow downloads the bundled DMG, checksum list, and generated cask,
    verifies them, regenerates the cask to compare its exact hash/signing notice,
    and commits `Casks/symplast.rb` to the tap. No placeholder SHA or quarantine

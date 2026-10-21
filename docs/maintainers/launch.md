@@ -34,8 +34,10 @@
 
 1. Configure [GitHub](README.md#repository-configuration). Enable Actions and
    create the environments.
-2. Push the reviewed `main` branch. Create and push `v0.2.0`; the workflow builds
-   a draft.
+2. Push the reviewed `main` branch. Create and push `v0.2.0` **on the `main`
+   commit that carries the release** — tags on other branches are refused even
+   when the content matches (see [Releasing](README.md#releasing)). The workflow
+   builds a draft.
 3. Inspect the draft artifacts and warning text. Publish the draft **manually**
    only after downloads can be publicly accessed. Never replace a published DMG
    under the same version; its Homebrew checksum would change.
