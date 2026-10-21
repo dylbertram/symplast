@@ -42,9 +42,11 @@
     <h2 id="sync-title">Local files.<br />Ready wherever you work.</h2>
     <p class="mt-6 max-w-[720px] text-base text-muted"><a href="https://mutagen.io/">Mutagen</a> keeps two folders in sync by detecting changes and transferring them between your Mac and another folder or SSH server. Symplast gives you a native interface to create and manage those sessions; Mutagen does the syncing.</p>
     <div class="feature-grid">
-      <article><h3>Edit here. Build there.</h3><p class="feature-copy">Keep a project on your Mac for your editor and local tools, while a copy on your server stays up to date for remote builds or testing. Choose two-way sync, or send changes in one direction.</p></article>
+      <article><h3>Edit here. Build there.</h3><p class="feature-copy">Keep a project on your Mac for your editor and local tools, while a copy on your server stays up to date for remote builds or testing. Choose two-way sync, or send changes in one direction: local to remote, or remote to local. One-way sync keeps the destination’s own files unless you want it to be an exact copy.</p></article>
       <article><h3>Copies, not shortcuts.</h3><p class="feature-copy">A shortcut or symlink points to existing files; it doesn’t keep a second folder up to date. Sync gives each location its own files, even when they’re on different machines.</p></article>
       <article><h3>No network drive required.</h3><p class="feature-copy">A mounted network drive accesses remote files over the connection. With sync, your tools work on local files. Keep editing when disconnected; Mutagen synchronizes changes when the connection returns.</p></article>
+      <article><h3>Browse, don’t type paths.</h3><p class="feature-copy">For SSH destinations, Symplast connects to the server and lists its folders, so you pick one from the list instead of looking the path up in a terminal.</p></article>
+      <article><h3>Preview before you sync.</h3><p class="feature-copy">Before a session starts, a preview lists which files would be added, changed, or removed on each side. Nothing moves until you confirm.</p></article>
     </div>
   </section>
   <section class="section wrap grid grid-cols-1 gap-[26px] md:grid-cols-2 md:gap-9 lg:gap-16" id="downloads" aria-labelledby="downloads-title">
@@ -71,7 +73,7 @@
   </section>
   <section class="section wrap grid grid-cols-1 gap-[26px] md:grid-cols-2 md:gap-9 lg:gap-16" aria-labelledby="installation-title">
     <div><p class="eyebrow">From install to sync</p><h2 id="installation-title">Start with<br />your folders.</h2></div>
-    <div><p class="mb-4 text-sm leading-[1.8] text-muted">Open Symplast from Applications or Spotlight, then click its menu bar icon to create a session. Choose a local folder and a destination, set your sync options, and start syncing.</p><p class="mb-4 text-sm leading-[1.8] text-muted">Syncing to an SSH server? You’ll need a working SSH key and agent; Symplast cannot prompt for a password or key passphrase. Your Mutagen sessions keep running even when you quit Symplast.</p><a class="text-link" href="https://github.com/dylbertram/symplast/blob/main/docs/usage.md">Simple usage guide ↗</a><br /><a class="text-link" href="https://github.com/dylbertram/symplast/blob/main/docs/installation.md">Installation &amp; troubleshooting ↗</a></div>
+    <div><p class="mb-4 text-sm leading-[1.8] text-muted">Open Symplast from Applications or Spotlight, then click its menu bar icon to create a session. Choose a local folder and a destination, pick remote folders from a browsable list, and check a preview of what the first sync will change before you start.</p><p class="mb-4 text-sm leading-[1.8] text-muted">Syncing to an SSH server? You’ll need a working SSH key and agent; Symplast cannot prompt for a password or key passphrase. Your Mutagen sessions keep running even when you quit Symplast.</p><a class="text-link" href="https://github.com/dylbertram/symplast/blob/main/docs/usage.md">Simple usage guide ↗</a><br /><a class="text-link" href="https://github.com/dylbertram/symplast/blob/main/docs/installation.md">Installation &amp; troubleshooting ↗</a></div>
   </section>
 </main>
 <Footer />
