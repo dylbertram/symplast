@@ -12,7 +12,10 @@ file synchronization and continues running if you quit Symplast.
    Folder paths can be typed or pasted (⌘V) into the fields, and copied (⌘C)
    back out of them.
 3. Choose a sync mode and review its direction. **Two-way safe** is the default.
-   **One-way replica** can overwrite or delete files on the target.
+   One-way modes ask for a direction — local → remote or remote → local — and
+   run **safe** by default: files that exist only on the receiving side are left
+   untouched. Uncheck **Safe** to turn the session into a **replica**, which
+   overwrites or deletes those files on the receiving side.
 4. Optionally exclude version-control folders or build output (`node_modules/`,
    `target/`, `build/`, `bin/`, `*.o`) and add ignore patterns, then choose
    **Create session**.

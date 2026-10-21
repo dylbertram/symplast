@@ -22,15 +22,16 @@ struct NewSessionDraft: Codable, Equatable {
         }
     }
 
-    /// User-facing sync modes. Mutagen only offers "local wins" resolution, so
-    /// "remote wins" is expressed by creating the session with the remote side
-    /// listed first.
+    /// User-facing sync modes. Mutagen always propagates from the first-listed
+    /// endpoint (alpha) to the second (beta) and only offers "local wins"
+    /// conflict resolution, so both "remote wins" and one-way direction are
+    /// expressed by swapping the endpoint order when the session is created.
     enum ModeChoice: String, Codable, CaseIterable, Identifiable {
         case twoWaySafe
         case twoWayLocalWins
         case twoWayRemoteWins
-        case oneWaySafe
-        case oneWayReplica
+        case oneWayLocalToRemote
+        case oneWayRemoteToLocal
 
         var id: String { rawValue }
 
@@ -39,12 +40,16 @@ struct NewSessionDraft: Codable, Equatable {
             case .twoWaySafe: return "Two-way (safe)"
             case .twoWayLocalWins: return "Two-way (local wins)"
             case .twoWayRemoteWins: return "Two-way (remote wins)"
-            case .oneWaySafe: return "One-way (safe)"
-            case .oneWayReplica: return "One-way (replica)"
+            case .oneWayLocalToRemote: return "One-way (local → remote)"
+            case .oneWayRemoteToLocal: return "One-way (remote → local)"
             }
         }
 
-        var detail: String {
+        var isOneWay: Bool { self == .oneWayLocalToRemote || self == .oneWayRemoteToLocal }
+
+        /// Explanation shown under the picker. One-way modes also reflect the
+        /// Safe checkbox, so the text clarifies exactly which choice is active.
+        func detail(oneWaySafe: Bool) -> String {
             switch self {
             case .twoWaySafe:
                 return "Changes flow in both directions. If the same file is edited on both sides, it is left as a conflict for you to resolve."
@@ -52,24 +57,31 @@ struct NewSessionDraft: Codable, Equatable {
                 return "Changes flow in both directions, but conflicts are resolved automatically in favour of the local side."
             case .twoWayRemoteWins:
                 return "Changes flow in both directions, but conflicts are resolved automatically in favour of the remote side."
-            case .oneWaySafe:
-                return "Only the local side propagates to the remote. Remote-only edits are left untouched and can become conflicts."
-            case .oneWayReplica:
-                return "The remote is made an exact replica of the local side. Remote-only files are overwritten or deleted — use with care."
+            case .oneWayLocalToRemote:
+                return oneWaySafe
+                    ? "Changes flow only from the local folder to the remote. Remote-only files are left untouched and can become conflicts."
+                    : "Replica: the remote is forced to match the local folder exactly. Remote-only files are overwritten or deleted — use with care."
+            case .oneWayRemoteToLocal:
+                return oneWaySafe
+                    ? "Changes flow only from the remote to the local folder. Local-only files are left untouched and can become conflicts."
+                    : "Replica: the local folder is forced to match the remote exactly. Local-only files are overwritten or deleted — use with care."
             }
         }
 
-        var mutagenMode: String {
+        /// Mutagen only knows the propagation mode; the direction lives in the
+        /// endpoint order.
+        func mutagenMode(oneWaySafe: Bool) -> String {
             switch self {
             case .twoWaySafe: return "two-way-safe"
             case .twoWayLocalWins, .twoWayRemoteWins: return "two-way-resolved"
-            case .oneWaySafe: return "one-way-safe"
-            case .oneWayReplica: return "one-way-replica"
+            case .oneWayLocalToRemote, .oneWayRemoteToLocal:
+                return oneWaySafe ? "one-way-safe" : "one-way-replica"
             }
         }
 
-        /// "Remote wins" is implemented by listing the remote endpoint first.
-        var swapsEndpoints: Bool { self == .twoWayRemoteWins }
+        /// "Remote wins" and "remote → local" are implemented by listing the
+        /// remote endpoint first.
+        var swapsEndpoints: Bool { self == .twoWayRemoteWins || self == .oneWayRemoteToLocal }
     }
 
     var name: String = ""
@@ -82,6 +94,8 @@ struct NewSessionDraft: Codable, Equatable {
     var sshPath: String = ""
     var customTarget: String = ""
     var modeChoice: ModeChoice = .twoWaySafe
+    /// One-way modes run "safe" by default; unchecking turns them into replica.
+    var oneWaySafe: Bool = true
     var ignoreText: String = ""
     var ignoreVCS: Bool = true
     var ignoreBuildArtifacts: Bool = false
@@ -128,10 +142,9 @@ struct NewSessionDraft: Codable, Equatable {
         switch definition.mode {
         case "two-way-resolved":
             modeChoice = remoteFirst ? .twoWayRemoteWins : .twoWayLocalWins
-        case "one-way-safe":
-            modeChoice = .oneWaySafe
-        case "one-way-replica":
-            modeChoice = .oneWayReplica
+        case "one-way-safe", "one-way-replica":
+            oneWaySafe = definition.mode == "one-way-safe"
+            modeChoice = remoteFirst ? .oneWayRemoteToLocal : .oneWayLocalToRemote
         default:
             modeChoice = .twoWaySafe
         }
@@ -187,9 +200,19 @@ struct NewSessionDraft: Codable, Equatable {
         }
     }
 
-    /// True when the chosen mode should list the remote endpoint first.
+    /// True when the chosen mode should list the target endpoint first.
     var swapsEndpoints: Bool {
-        modeChoice.swapsEndpoints && !Self.looksLocal(resolvedTarget) && !resolvedTarget.isEmpty
+        guard !resolvedTarget.isEmpty else { return false }
+        switch modeChoice {
+        case .twoWayRemoteWins:
+            // With a local folder on both sides there is no "remote" side to
+            // favour, and the orientation cannot be recovered when editing.
+            return !Self.looksLocal(resolvedTarget)
+        case .oneWayRemoteToLocal:
+            return true
+        default:
+            return false
+        }
     }
 
     var isValid: Bool {
@@ -211,7 +234,7 @@ struct NewSessionDraft: Codable, Equatable {
             name: name.trimmingCharacters(in: .whitespaces),
             alpha: swapsEndpoints ? target : local,
             beta: swapsEndpoints ? local : target,
-            mode: modeChoice.mutagenMode,
+            mode: modeChoice.mutagenMode(oneWaySafe: oneWaySafe),
             ignorePaths: ignores,
             ignoreVCS: ignoreVCS
         )

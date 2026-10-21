@@ -73,9 +73,15 @@ struct NewSessionView: View {
                             }
                             .labelsHidden()
                         }
-                        Text(store.draft.modeChoice.detail)
+                        if store.draft.modeChoice.isOneWay {
+                            Toggle("Safe", isOn: $store.draft.oneWaySafe)
+                                .fixedSize()
+                                .help("Checked: target-only files are left untouched. Unchecked: the target becomes an exact replica and target-only files are overwritten or deleted.")
+                                .padding(.leading, 80)
+                        }
+                        Text(store.draft.modeChoice.detail(oneWaySafe: store.draft.oneWaySafe))
                             .font(.system(size: 10))
-                            .foregroundStyle(store.draft.modeChoice == .oneWayReplica ? PanelColors.warning : Color.secondary.opacity(0.85))
+                            .foregroundStyle(isReplicaChoice ? PanelColors.warning : Color.secondary.opacity(0.85))
                             .fixedSize(horizontal: false, vertical: true)
                     }
 
@@ -205,6 +211,10 @@ struct NewSessionView: View {
         .controlSize(.small)
         .padding(.horizontal, 12)
         .frame(height: Layout.footerHeight)
+    }
+
+    private var isReplicaChoice: Bool {
+        store.draft.modeChoice.isOneWay && !store.draft.oneWaySafe
     }
 
     private var blockedSummary: String {
