@@ -89,7 +89,7 @@ struct NewSessionDraft: Codable, Equatable {
     /// The directories blocked by Mutagen's `--ignore-vcs` group.
     static let vcsIgnores = [".git/", ".svn/", ".hg/", ".bzr/", "_darcs/", "CVS/"]
     /// Common build output directories/artifacts.
-    static let buildIgnores = ["target/", "build/", "bin/", "*.o"]
+    static let buildIgnores = ["node_modules/", "target/", "build/", "bin/", "*.o"]
 
     init() {}
 
