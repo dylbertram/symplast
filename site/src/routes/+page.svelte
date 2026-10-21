@@ -53,17 +53,13 @@
     <div><p class="eyebrow">Download or use Homebrew</p><h2 id="downloads-title">Get Symplast<br />for your Mac.</h2><p class="mt-6 text-sm text-muted">No account, no subscription. The recommended download includes Mutagen, so there’s nothing else to install.</p></div>
     <div class="min-w-0 rounded-[10px] border border-line bg-surface">
       <div class="install-option">
-        {#if data.release.available}
-          <h3 class="mb-3 flex items-center gap-2.5"><Icon name="mac" class="size-[22px] text-accent" /><span>Direct download</span></h3>
-          <DownloadButton href={data.release.download} />
-          <p class="mt-2.5 text-[13px] text-muted">Recommended easy install · Includes Mutagen<br />Version {data.release.version} · Apple Silicon &amp; Intel</p>
-          {#if !data.release.notarized}<p class="mt-2.5 text-[13px] text-muted"><strong>This build is not notarized by Apple.</strong> macOS may block first launch. See the <a href="https://github.com/dylbertram/symplast/blob/main/docs/installation.md">installation guide</a> before opening it. Never disable Gatekeeper or bypass a malware or damaged-app warning.</p>{/if}
-          <a class="secondary-download" href={data.release.app_only_download}><Icon name="download" /><span>Download app only (without Mutagen)</span></a>
-          <p class="mt-2.5 text-[13px] text-muted">Already use Mutagen? Choose the smaller app-only download and keep your existing installation.</p>
-          <a class="secondary-download" href={data.release.notes}>Checksums &amp; release notes ↗</a>
-        {:else}
-          <h3 class="mb-3">Coming soon for macOS.</h3><p class="text-[13px] text-muted">The first public release is being prepared. Downloads will appear here when they’re ready.</p><a class="secondary-download" href="https://github.com/dylbertram/symplast">Follow the project on GitHub ↗</a>
-        {/if}
+        <h3 class="mb-3 flex items-center gap-2.5"><Icon name="mac" class="size-[22px] text-accent" /><span>Direct download</span></h3>
+        <DownloadButton href={data.release.download} />
+        <p class="mt-2.5 text-[13px] text-muted">Recommended easy install · Includes Mutagen<br />Version {data.release.version} · Apple Silicon &amp; Intel</p>
+        {#if !data.release.notarized}<p class="mt-2.5 text-[13px] text-muted"><strong>This build is not notarized by Apple.</strong> macOS may block first launch. See the <a href="https://github.com/dylbertram/symplast/blob/main/docs/installation.md">installation guide</a> before opening it. Never disable Gatekeeper or bypass a malware or damaged-app warning.</p>{/if}
+        <a class="secondary-download" href={data.release.app_only_download}><Icon name="download" /><span>Download app only (without Mutagen)</span></a>
+        <p class="mt-2.5 text-[13px] text-muted">Already use Mutagen? Choose the smaller app-only download and keep your existing installation.</p>
+        <a class="secondary-download" href={data.release.notes}>Checksums &amp; release notes ↗</a>
       </div>
       <div class="install-option border-t border-line">
         <h3 class="mb-3 flex items-center gap-2.5"><Icon name="terminal" class="size-[22px] text-accent" /><span>Install with Homebrew</span></h3>

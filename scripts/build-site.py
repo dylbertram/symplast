@@ -6,9 +6,11 @@ from pathlib import Path
 import re
 import shutil
 import subprocess
+import urllib.request
 
 ROOT = Path(__file__).resolve().parent.parent
 REPOSITORY = "https://github.com/dylbertram/symplast"
+REPOSITORY_SLUG = "dylbertram/symplast"
 STATIC_FILES = ("_headers", "_redirects", "robots.txt", "sitemap.xml")
 ASSETS = (("Resources/AppLogo.png", "mark.png"),
           ("Resources/AppIcon-1024.png", "app-icon.png"),
@@ -38,6 +40,19 @@ def release_data(release=None, homebrew_ready=False):
             "homebrew_ready": bool(homebrew_ready)}
 
 
+def latest_release():
+    """The newest published release from the public GitHub API, if there is one."""
+    request = urllib.request.Request(
+        f"https://api.github.com/repos/{REPOSITORY_SLUG}/releases/latest",
+        headers={"Accept": "application/vnd.github+json", "User-Agent": "symplast-build-site"})
+    try:
+        with urllib.request.urlopen(request, timeout=15) as response:
+            return json.load(response)
+    except Exception as error:  # offline, or no published release
+        print(f"Could not fetch the latest release: {error}")
+        return None
+
+
 def prepare(release=None, homebrew_ready=False):
     # Only these public assets and validated fields enter the website build.
     assets = ROOT / "site/static/assets"
@@ -46,7 +61,20 @@ def prepare(release=None, homebrew_ready=False):
         shutil.copy2(ROOT / source, assets / name)
     generated = ROOT / "site/src/lib/generated"
     generated.mkdir(parents=True, exist_ok=True)
-    (generated / "release.json").write_text(json.dumps(release_data(release, homebrew_ready), indent=2) + "\n")
+    path = generated / "release.json"
+    data = release_data(release, homebrew_ready)
+    if not data["available"]:
+        # The website has no coming-soon fallback: it always links the newest
+        # published release. Builds without metadata (local runs, pull
+        # requests) fetch it themselves.
+        data = release_data(latest_release(), homebrew_ready)
+    if not data["available"]:
+        previous = json.loads(path.read_text()) if path.is_file() else None
+        if previous and previous.get("available"):
+            print("No release metadata available; keeping the existing release.json")
+            return
+        raise SystemExit("The website requires published release data; none is available.")
+    path.write_text(json.dumps(data, indent=2) + "\n")
 
 
 def build(release=None, homebrew_ready=False):
