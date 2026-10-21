@@ -135,7 +135,7 @@ done
 
 ## Verify
 
-`python3 scripts/verify-release.py 0.1.0 --notarized` mounts the DMGs read-only
+`python3 scripts/verify-release.py 0.2.0 --notarized` mounts the DMGs read-only
 and checks signatures, stapling, architecture slices, and resources without
 launching the app or touching existing sync sessions.
 
