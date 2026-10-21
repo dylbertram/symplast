@@ -177,7 +177,47 @@ final class SyncPreviewTests: XCTestCase {
         XCTAssertTrue(report.entries.isEmpty)
     }
 
+    /// Ignore patterns apply to both sides of a sync, but the SSH inventory
+    /// lists everything — an ignored `.git/` on the remote must not show up as
+    /// "added locally".
+    func testIgnoredPathsAreExcludedFromBothSidesOfThePreview() async throws {
+        let source = try makeDirectory { root in
+            try write("readme.md", in: root, contents: "same",
+                      modified: Date(timeIntervalSince1970: 1_000_000))
+        }
+        defer { try? FileManager.default.removeItem(at: source) }
+
+        let fixture = try makeFakeSSH { """
+        printf '%s\\t%s\\t%s\\n' 'readme.md' '4' '1000000'
+        printf '%s\\t%s\\t%s\\n' '.git/config' '395' '1000000'
+        """ }
+        defer { try? FileManager.default.removeItem(at: fixture.directory) }
+
+        var draft = NewSessionDraft()
+        draft.name = "preview-test"
+        draft.localPath = source.path
+        draft.targetKind = .remote
+        draft.sshHost = "host.example"
+        draft.sshPath = "/srv/app"
+
+        let report = await SyncPreviewService.report(for: draft, sshExecutable: fixture.script)
+        XCTAssertNil(report.notice)
+        XCTAssertEqual(report.unchangedCount, 1, "readme.md is identical on both sides")
+        XCTAssertTrue(report.entries.isEmpty,
+                      "the ignored .git/config must not appear: \(report.entries)")
+    }
+
     // MARK: - Fixtures
+
+    private func makeFakeSSH(_ body: () -> String) throws -> (directory: URL, script: URL) {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("opencode/symplast-preview-ssh-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let script = directory.appendingPathComponent("ssh")
+        try "#!/bin/sh\n\(body())\n".write(to: script, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: script.path)
+        return (directory, script)
+    }
 
     private func makeDirectory(_ populate: (URL) throws -> Void) throws -> URL {
         let directory = FileManager.default.temporaryDirectory

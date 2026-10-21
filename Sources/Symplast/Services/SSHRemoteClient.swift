@@ -70,20 +70,25 @@ enum RemoteInventory {
         }
     }
 
-    /// The remote shell snippet that prints the inventory. `stat` differs
-    /// between GNU and BSD systems, so both spellings are supported; `%T@`
-    /// prints fractional seconds and BSD's `%m` whole seconds, and comparison
-    /// happens in whole seconds either way.
+    /// The remote shell snippet that prints the inventory: one
+    /// `relative path<size><mtime>` line per file. `find`'s own `-printf` is
+    /// GNU-only and missing on busybox systems (where it fails silently here),
+    /// and `stat` spells its format differently on GNU and BSD, so the numbers
+    /// are read via `find -exec stat …` and only the branch depends on which
+    /// `stat` answers. Literal tab characters separate the fields, so no
+    /// escape sequence has to survive a shell on the way.
     static func script(for path: String) -> String {
         let quoted = RemoteListing.shellQuote(path)
+        let gnuFormat = "%n\t%s\t%Y"
+        let bsdFormat = "%N\t%z\t%m"
         return "p=\(quoted); "
             + "case \"$p\" in \"~\") p=\"$HOME\";; \"~/\"*) p=\"$HOME${p#\\~}\";; esac; "
             + "[ -n \"$p\" ] || p=\"$HOME\"; "
             + "p=\"${p%/}\"; [ -n \"$p\" ] || p=\"/\"; "
             + "cd \"$p\" 2>/dev/null || { printf 'symplast: cannot access %s\\n' \"$p\" >&2; exit 2; }; "
             + "if stat -c '%s' . >/dev/null 2>&1; then "
-            + "find . -type f -printf '%P\\t%s\\t%T@\\n' 2>/dev/null; "
-            + "else find . -type f -exec stat -f '%N\\t%z\\t%m' {} + 2>/dev/null; fi"
+            + "find . -type f -exec stat -c '\(gnuFormat)' {} + 2>/dev/null; "
+            + "else find . -type f -exec stat -f '\(bsdFormat)' {} + 2>/dev/null; fi"
     }
 }
 
@@ -109,7 +114,9 @@ enum RemoteBrowseError: LocalizedError {
 /// host-key prompt — it fails fast and the UI explains what is missing (key in
 /// the SSH agent, trusted host key, reachable host).
 struct SSHRemoteClient {
-    var executableURL = URL(fileURLWithPath: "/usr/bin/ssh")
+    static let defaultExecutable = URL(fileURLWithPath: "/usr/bin/ssh")
+
+    var executableURL = SSHRemoteClient.defaultExecutable
     var user: String
     var host: String
     var port: String = ""

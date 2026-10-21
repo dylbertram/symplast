@@ -29,7 +29,8 @@ enum SyncPreviewService {
     /// stays responsive on large trees.
     static let fileLimit = 20_000
 
-    static func report(for draft: NewSessionDraft) async -> SyncPreviewReport {
+    static func report(for draft: NewSessionDraft,
+                       sshExecutable: URL = SSHRemoteClient.defaultExecutable) async -> SyncPreviewReport {
         let localRoot = PathUtil.expand(draft.localPath)
         var isDirectory: ObjCBool = false
         guard FileManager.default.fileExists(atPath: localRoot, isDirectory: &isDirectory),
@@ -39,10 +40,14 @@ enum SyncPreviewService {
         }
 
         do {
-            let localScan = localInventory(at: localRoot, ignores: ignores(for: draft))
-            let target = try await targetInventory(for: draft, ignores: ignores(for: draft))
+            let matcher = ignores(for: draft)
+            let localScan = localInventory(at: localRoot, ignores: matcher)
+            let target = try await targetInventory(for: draft, ignores: matcher, sshExecutable: sshExecutable)
+            // Ignore patterns apply to both sides of a Mutagen sync; the SSH
+            // inventory lists everything, so filter it here like the local scan.
+            let targetFiles = target.files.filter { !matcher.ignores($0.path) }
             let entries = SyncPreview.classify(local: localScan.files,
-                                               remote: target.files,
+                                               remote: targetFiles,
                                                oneWaySource: oneWaySource(for: draft),
                                                replica: isReplica(for: draft))
             let changed = entries.filter { $0.outcome != .unchanged }
@@ -94,20 +99,23 @@ enum SyncPreviewService {
     }
 
     private static func targetInventory(for draft: NewSessionDraft,
-                                        ignores: IgnoreMatcher) async throws -> Inventory {
+                                        ignores: IgnoreMatcher,
+                                        sshExecutable: URL) async throws -> Inventory {
         switch draft.targetKind {
         case .local:
             let root = PathUtil.expand(draft.localTargetPath)
             let scan = localInventory(at: root, ignores: ignores)
             return Inventory(files: scan.files, description: root, truncated: scan.truncated)
         case .remote:
-            let client = SSHRemoteClient(user: draft.sshUser, host: draft.sshHost, port: draft.sshPort)
+            let client = SSHRemoteClient(executableURL: sshExecutable,
+                                         user: draft.sshUser, host: draft.sshHost, port: draft.sshPort)
             let files = try await client.inventory(at: draft.sshPath)
             return capped(files, description: draft.resolvedTarget)
         case .custom:
             let target = draft.customTarget.trimmingCharacters(in: .whitespacesAndNewlines)
             if let ssh = NewSessionDraft.parseSSHEndpoint(target) {
-                let client = SSHRemoteClient(user: ssh.user, host: ssh.host, port: ssh.port)
+                let client = SSHRemoteClient(executableURL: sshExecutable,
+                                             user: ssh.user, host: ssh.host, port: ssh.port)
                 let files = try await client.inventory(at: ssh.path)
                 return capped(files, description: target)
             }

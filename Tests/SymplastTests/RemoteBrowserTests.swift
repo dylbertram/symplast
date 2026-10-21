@@ -88,6 +88,41 @@ final class RemoteBrowserTests: XCTestCase {
         XCTAssertEqual(listing.names, ["sub1", "sub2"], "one level deep, folders only")
     }
 
+    /// Runs the real inventory script through a real shell against a real
+    /// directory. `find -printf` — the earlier spelling — is GNU-only and
+    /// fails silently on busybox find, which emptied remote inventories and
+    /// made the sync preview report "no difference".
+    func testInventoryScriptListsFilesWithSizesAndTimes() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("opencode/symplast-inventory-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: directory.appendingPathComponent("src"),
+                                                withIntermediateDirectories: true)
+        try Data(count: 12).write(to: directory.appendingPathComponent("readme.md"))
+        try Data(count: 7).write(to: directory.appendingPathComponent("src/main.c"))
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let script = RemoteInventory.script(for: directory.path)
+        XCTAssertFalse(script.contains("-printf"), "find -printf is GNU-only and absent on busybox")
+        XCTAssertTrue(script.contains("-exec stat"))
+
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/bin/sh")
+        process.arguments = ["-c", script]
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = Pipe()
+        try process.run()
+        process.waitUntilExit()
+        XCTAssertEqual(process.terminationStatus, 0)
+
+        let output = String(decoding: pipe.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
+        let files = RemoteInventory.parse(output)
+        XCTAssertEqual(files.map(\.path).sorted(), ["readme.md", "src/main.c"])
+        XCTAssertEqual(files.first { $0.path == "readme.md" }?.size, 12)
+        XCTAssertEqual(files.first { $0.path == "src/main.c" }?.size, 7)
+        XCTAssertTrue(files.allSatisfy { $0.modified > 0 })
+    }
+
     // MARK: - End-to-end over a fake ssh executable
 
     func testListParsesTheSSHOutput() async throws {
