@@ -34,6 +34,9 @@ User-facing documentation lives in [`docs/`](../); this folder is for maintainer
 - `.github/CODEOWNERS` covers `.github/` and `scripts/` so review is requested
   for workflow and release-tooling changes.
 - The `release` workflow refuses a tag that is not contained in protected `main`.
+  The check compares ancestry, not content: a cherry-picked or rebased copy of
+  the same work on another branch is rejected even when the trees are
+  byte-identical.
 
 ## Variables (repository scope)
 
@@ -58,12 +61,25 @@ put secret values in workflow YAML, README, git remote URLs, or command examples
 
 ## Releasing
 
-After reviewing and committing all intended files:
+After reviewing and committing all intended files, tag the release commit **on
+`main`**. Never tag a work-branch commit — `dev` or topic branches often carry
+cherry-picked or rebased copies of the same changes, and the workflow's
+containment check rejects them with `Refusing to release vX.Y.Z: not contained
+in the protected main branch (compare status: diverged)` even when the content
+matches `main` exactly.
+
+Before pushing, create the tag locally and confirm its commit is already
+reachable from `main` — the push must not run if the check fails:
 
 ```sh
 git tag -a v0.2.0 -m "Symplast 0.2.0"
+git merge-base --is-ancestor v0.2.0^{commit} origin/main && echo "ok: tag is in main"
 git push origin v0.2.0
 ```
+
+If the check fails, delete the local tag with `git tag -d v0.2.0`, re-create it
+on the `main` release commit, and only then push. Never push a tag that points
+outside `main`.
 
 **Release** runs tests, checks out that exact tag, installs the pinned Go
 version, builds checksum-pinned non-SSPL Mutagen source and all supported agents,
@@ -77,6 +93,34 @@ Publish the reviewed draft in GitHub's UI. That human `release.published` event
 triggers the Homebrew and website workflows. Actions-created events using the
 built-in token normally do not cascade, which is another reason publication is
 manual.
+
+## Fixing a mistagged tag
+
+The **Protect release tags** ruleset rejects deleting, updating, or
+force-moving `v*` tags. If a tag was pushed for a commit outside `main` and **no
+release has been created from it yet**, an admin must temporarily relax the
+ruleset, move the tag, and immediately restore the ruleset:
+
+```sh
+git push origin :refs/tags/v0.2.0
+git tag -d v0.2.0
+git tag -a v0.2.0 <the main release commit> -m "Symplast 0.2.0"
+git push origin v0.2.0
+```
+
+Once a GitHub release exists for a tag, never move that tag — publish a new
+version instead. Keep long-lived branches rebased onto (or merged with) `main`
+so parallel cherry-picked copies of release work cannot accumulate.
+
+## Troubleshooting a release
+
+| Symptom | Cause | Fix |
+| --- | --- | --- |
+| `Refusing to release vX.Y.Z: not contained in the protected main branch (compare status: diverged)` | The tag points outside `main`, usually at cherry-picked copies of the same work | Move the tag to the `main` commit as in [Fixing a mistagged tag](#fixing-a-mistagged-tag) |
+| `GH013: Repository rule violations … Cannot delete this tag` | The **Protect release tags** ruleset blocks tag moves | Have an admin temporarily relax the ruleset, then restore it |
+| **Publish Homebrew cask** fails with `gh: Not Found (HTTP 404)` | It was dispatched before a release existed for that tag | Publish the draft release first; `release.published` runs the workflow automatically |
+| `Only the latest stable release may update the tap` | The tag is not the newest published stable release | Intended; only the latest release updates the tap |
+| **Release** fails at "Refuse to overwrite an existing release" on a rerun | A release for that tag already exists | Never reuse the tag; publish a new corrective version |
 
 ## Rollback
 
