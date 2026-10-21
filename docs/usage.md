@@ -11,7 +11,9 @@ file synchronization and continues running if you quit Symplast.
    `user@example.com:/path/to/folder`, or a supported custom Mutagen URL.
 3. Choose a sync mode and review its direction. **Two-way safe** is the default.
    **One-way replica** can overwrite or delete files on the target.
-4. Optionally add ignore patterns, then choose **Create session**.
+4. Optionally exclude version-control folders or build output (`node_modules/`,
+   `target/`, `build/`, `bin/`, `*.o`) and add ignore patterns, then choose
+   **Create session**.
 
 For SSH targets, use a key available through your SSH agent and configuration;
 Symplast cannot prompt for passwords or key passphrases. See

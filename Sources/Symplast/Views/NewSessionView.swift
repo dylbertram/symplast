@@ -88,7 +88,7 @@ struct NewSessionView: View {
                                 .fixedSize()
                             Toggle("Build output", isOn: $store.draft.ignoreBuildArtifacts)
                                 .fixedSize()
-                                .help("Excludes target/, build/, bin/ and *.o.")
+                                .help("Excludes node_modules/, target/, build/, bin/ and *.o.")
                         }
                         .font(.system(size: 11))
                         DisclosureGroup("Additional ignore patterns", isExpanded: $showIgnorePatterns) {
