@@ -15,14 +15,19 @@ important parts before launching any `mutagen` command
 
 - `PATH` — common Homebrew/local/bin locations are prepended.
 - `HOME` — set explicitly.
-- `SSH_AUTH_SOCK` — resolved in this order:
+- `SSH_AUTH_SOCK` — the first agent that **actually holds keys**, from these
+  sources in order:
   1. the app's own environment (when launched from a terminal),
-  2. the **login shell's** value (`zsh -lc`), if the socket exists,
-  3. launchd's system agent.
+  2. the **login shell's** value (`zsh -lc`, so `.zprofile`/`.zshenv`),
+  3. the **interactive shell's** value (`zsh -ic`, so `.zshrc` — where 1Password,
+     Bitwarden and similar setup guides usually put it),
+  4. launchd's system agent.
 
-Step 2 is the important one: GUI launches otherwise get launchd's system agent,
-which usually holds **no identities**, while your real agent (Bitwarden,
-1Password, etc.) is configured in your shell profile.
+  An inherited value is not trusted on its own: macOS hands GUI apps launchd's
+  system agent, which usually holds **no identities**, while your real agent
+  (Bitwarden, 1Password, etc.) is configured in your shell profile. Both shell
+  flavors are consulted because that setting does not live in the same file for
+  everyone, and an agent qualifies only when `ssh-add` can list keys from it.
 
 The **Browse…** button next to the Remote path field runs `ssh` the same way —
 once per click, in the same environment, in batch mode so it can never hang on a
