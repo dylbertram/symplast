@@ -38,6 +38,14 @@ final class AppStore: ObservableObject {
         self.settings = Self.loadSettings(key: settingsKey, defaults: defaults)
         self.saved = Self.loadSaved(key: savedKey, defaults: defaults)
         self.client = Self.makeClient(settings: settings)
+        Task.detached { [weak self] in
+            let socket = MutagenClient.childEnvironment["SSH_AUTH_SOCK"] ?? "none"
+            await self?.setSSHAgentSocket(socket)
+        }
+    }
+
+    private func setSSHAgentSocket(_ value: String) {
+        sshAgentSocket = value
     }
 
     // MARK: - Lifecycle
@@ -135,9 +143,11 @@ final class AppStore: ObservableObject {
     }
 
     /// The SSH agent socket Mutagen will use, for the Settings readout.
-    var sshAgentSocket: String {
-        MutagenClient.childEnvironment["SSH_AUTH_SOCK"] ?? "none"
-    }
+    /// Probing it shells out to the user's shells and `ssh-add`, so it resolves
+    /// once in the background at launch — process work must never run inside a
+    /// SwiftUI body evaluation (nested run loops there corrupt the update
+    /// graph).
+    @Published private(set) var sshAgentSocket = "Resolving…"
 
     /// Whether the resolved `mutagen` binary came from inside this app bundle
     /// (a self-contained build) rather than a system-wide installation.
