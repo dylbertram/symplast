@@ -120,6 +120,7 @@ so parallel cherry-picked copies of release work cannot accumulate.
 | `GH013: Repository rule violations … Cannot delete this tag` | The **Protect release tags** ruleset blocks tag moves | Have an admin temporarily relax the ruleset, then restore it |
 | **Publish Homebrew cask** fails with `gh: Not Found (HTTP 404)` | It was dispatched before a release existed for that tag | Publish the draft release first; `release.published` runs the workflow automatically |
 | `Only the latest stable release may update the tap` | The tag is not the newest published stable release | Intended; only the latest release updates the tap |
+| **Release** is cancelled at `timeout-minutes` during the Mutagen build, with a leftover `codesign` process | `codesign` waited on a keychain authorization prompt that a headless runner cannot answer (import without `-A`/`-T`, partition list without `codesign:`) | Keep the fixed import recipe and the "Verify headless code signing" smoke test in `release.yml` intact; the smoke test fails in minutes instead of burning the whole job |
 | **Release** fails at "Refuse to overwrite an existing release" on a rerun | A release for that tag already exists | Never reuse the tag; publish a new corrective version |
 
 ## Rollback
