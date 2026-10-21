@@ -28,7 +28,7 @@ User-facing documentation lives in [`docs/`](../); this folder is for maintainer
   | Environment | Allowed ref | Purpose |
   | --- | --- | --- |
   | `release` | tag `v*` | signing + notarization credentials |
-  | `website` | branch `main` | Cloudflare Pages deploy |
+  | `website` | branch `main`, tag `v*` | Cloudflare Pages deploy |
   | `homebrew` | branch `main`, tag `v*` | tap update |
 
 - `.github/CODEOWNERS` covers `.github/` and `scripts/` so review is requested
