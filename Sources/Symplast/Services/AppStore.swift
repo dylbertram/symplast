@@ -415,9 +415,39 @@ final class AppStore: ObservableObject {
 
     // MARK: - New / edit form
 
+    /// Connection details for the in-panel remote folder browser. Snapshotted
+    /// when browsing starts so later typing in the form cannot change the
+    /// connection mid-browse.
+    struct RemoteBrowseTarget: Equatable {
+        var user: String
+        var host: String
+        var port: String
+        var path: String
+    }
+
+    @Published private(set) var remoteBrowseTarget: RemoteBrowseTarget?
+
     func beginNewSession() {
         draft = NewSessionDraft()
         editingOriginalName = nil
+        route = .newSession
+    }
+
+    /// Open the SSH folder browser for the current remote target fields.
+    func beginRemoteBrowse() {
+        remoteBrowseTarget = RemoteBrowseTarget(user: draft.sshUser,
+                                                host: draft.sshHost,
+                                                port: draft.sshPort,
+                                                path: draft.sshPath)
+        route = .remoteBrowser
+    }
+
+    /// Return from the browser, optionally filling in the chosen folder.
+    func finishRemoteBrowse(selecting path: String? = nil) {
+        if let path, !path.isEmpty {
+            draft.sshPath = path
+        }
+        remoteBrowseTarget = nil
         route = .newSession
     }
 

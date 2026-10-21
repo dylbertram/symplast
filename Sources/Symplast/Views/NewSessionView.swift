@@ -158,9 +158,17 @@ struct NewSessionView: View {
                     .frame(width: 52)
                 }
                 inlineField("Remote path") {
-                    TextField("/remote/path", text: $store.draft.sshPath)
-                        .textFieldStyle(.roundedBorder)
-                        .accessibilityLabel("Remote folder path")
+                    HStack(spacing: 8) {
+                        TextField("/remote/path", text: $store.draft.sshPath)
+                            .textFieldStyle(.roundedBorder)
+                            .accessibilityLabel("Remote folder path")
+                        Button("Browse…") { store.beginRemoteBrowse() }
+                            .controlSize(.small)
+                            .disabled(!canBrowseRemote)
+                            .help(canBrowseRemote
+                                  ? "Browse the folders on the server over SSH"
+                                  : "Enter the SSH host first")
+                    }
                 }
                 Text("Leave the port blank to use your SSH configuration.")
                     .font(.system(size: 10))
@@ -215,6 +223,10 @@ struct NewSessionView: View {
 
     private var isReplicaChoice: Bool {
         store.draft.modeChoice.isOneWay && !store.draft.oneWaySafe
+    }
+
+    private var canBrowseRemote: Bool {
+        !store.draft.sshHost.trimmingCharacters(in: .whitespaces).isEmpty
     }
 
     private var blockedSummary: String {

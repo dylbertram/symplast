@@ -11,6 +11,7 @@ enum Layout {
     static let bannerHeight: CGFloat = 100
     static let errorHeight: CGFloat = 28
     static let formHeight: CGFloat = 460
+    static let browserHeight: CGFloat = 420
     static let settingsHeight: CGFloat = 620
 
     static func listHeight(sessionCount: Int, savedCount: Int, daemonAvailable: Bool, hasError: Bool) -> CGFloat {

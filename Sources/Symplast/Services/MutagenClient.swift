@@ -24,7 +24,7 @@ struct CommandResult {
 }
 
 /// Thread-safe collector for a process's stdout/stderr pipes.
-private final class DataCollector: @unchecked Sendable {
+final class DataCollector: @unchecked Sendable {
     private let lock = NSLock()
     private var _out = Data()
     private var _err = Data()
