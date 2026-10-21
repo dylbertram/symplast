@@ -58,6 +58,36 @@ final class RemoteBrowserTests: XCTestCase {
                        "studio.example.com")
     }
 
+    /// Runs the real listing script through a real shell against a real
+    /// directory: the earlier `find . -type d -prune -print` spelling pruned
+    /// the starting directory before descending and listed nothing at all.
+    func testListScriptListsOnlyTheImmediateFolders() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("opencode/symplast-list-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: directory.appendingPathComponent("sub1"),
+                                                withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: directory.appendingPathComponent("sub2/nested"),
+                                                withIntermediateDirectories: true)
+        try Data().write(to: directory.appendingPathComponent("file.txt"))
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let script = RemoteListing.listScript(for: directory.path)
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/bin/sh")
+        process.arguments = ["-c", script]
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = Pipe()
+        try process.run()
+        process.waitUntilExit()
+        XCTAssertEqual(process.terminationStatus, 0)
+
+        let output = String(decoding: pipe.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
+        let listing = try XCTUnwrap(RemoteListing.parse(output))
+        XCTAssertEqual(listing.path, directory.path)
+        XCTAssertEqual(listing.names, ["sub1", "sub2"], "one level deep, folders only")
+    }
+
     // MARK: - End-to-end over a fake ssh executable
 
     func testListParsesTheSSHOutput() async throws {

@@ -31,9 +31,11 @@ struct RemoteListing: Equatable {
     }
 
     /// The remote shell snippet that prints the listing: the absolute path of
-    /// the directory first, then its subdirectories. `find` prunes every
-    /// directory it prints, so only the top level is listed, and it works the
-    /// same on BSD and GNU find.
+    /// the directory first, then its immediate subdirectories. `find` prunes
+    /// every directory it prints so only the top level is listed, and the
+    /// `! -name .` guard keeps the starting directory itself out of the
+    /// result — pruning it would stop `find` from descending at all. The form
+    /// works the same on BSD and GNU find.
     static func listScript(for path: String) -> String {
         let quoted = shellQuote(path)
         return "p=\(quoted); "
@@ -41,7 +43,7 @@ struct RemoteListing: Equatable {
             + "[ -n \"$p\" ] || p=\"$HOME\"; "
             + "p=\"${p%/}\"; [ -n \"$p\" ] || p=\"/\"; "
             + "cd \"$p\" 2>/dev/null || { printf 'symplast: cannot access %s\\n' \"$p\" >&2; exit 2; }; "
-            + "pwd; find . -type d -prune -print 2>/dev/null | LC_ALL=C sort"
+            + "pwd; find . ! -name . -prune -type d -print 2>/dev/null | LC_ALL=C sort"
     }
 
     /// Quote a value for the remote shell. Paths are only ever quoted into the
