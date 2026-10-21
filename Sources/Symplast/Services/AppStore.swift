@@ -172,6 +172,13 @@ final class AppStore: ObservableObject {
         self.daemonAvailable = daemonAvailable
         if executableMissing { client = nil }
     }
+
+    /// Test/preview hook: show a canned sync preview without scanning anything.
+    func setPreviewReport(_ report: SyncPreviewReport) {
+        syncPreview = report
+        isPreparingPreview = false
+        route = .syncPreview
+    }
     #endif
 
     // MARK: - Refresh
@@ -451,6 +458,31 @@ final class AppStore: ObservableObject {
         route = .newSession
     }
 
+    // MARK: - Sync preview
+
+    @Published private(set) var syncPreview: SyncPreviewReport?
+    @Published private(set) var isPreparingPreview = false
+
+    /// Compare the two sides of the draft and show the result before the
+    /// session is created.
+    func beginSyncPreview() {
+        syncPreview = nil
+        isPreparingPreview = true
+        route = .syncPreview
+        let snapshot = draft
+        Task {
+            let report = await SyncPreviewService.report(for: snapshot)
+            syncPreview = report
+            isPreparingPreview = false
+        }
+    }
+
+    func finishSyncPreview() {
+        syncPreview = nil
+        isPreparingPreview = false
+        route = .newSession
+    }
+
     func beginEdit(_ definition: SavedSession) {
         draft = NewSessionDraft(from: definition)
         editingOriginalName = definition.name
@@ -489,6 +521,7 @@ final class AppStore: ObservableObject {
             }
             try await create(definition)
             editingOriginalName = nil
+            syncPreview = nil
             route = .list
             return true
         } catch {
