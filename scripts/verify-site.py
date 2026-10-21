@@ -59,13 +59,10 @@ def verify():
         for retired in ["quietly", "Make yourself", "Everyday controls", "Your sessions, at a glance", "Less to remember"]:
             assert retired not in text, f"Retired copy: {retired}"
         if name == "index.html":
-            if release["available"]:
-                assert release["download"] in page.links
-                assert release["app_only_download"] in page.links
-                assert ("not notarized" in text) == (not release["notarized"])
-            else:
-                assert "Coming soon" in text
-                assert not any(".dmg" in link for link in page.links)
+            assert release["available"], "The website always links the published release"
+            assert release["download"] in page.links
+            assert release["app_only_download"] in page.links
+            assert ("not notarized" in text) == (not release["notarized"])
             assert ("brew install --cask" in text) == release["homebrew_ready"]
     forbidden = {"release.env", "package.json", "package-lock.json", "private-notes.md"}
     for path in OUTPUT.rglob("*"):

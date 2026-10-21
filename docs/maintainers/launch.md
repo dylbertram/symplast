@@ -46,6 +46,8 @@
    first-launch guidance as an unauthenticated user.
 7. Update the README's release/tap status language when complete.
 
-If the website goes live before the release, it intentionally shows **Coming
-soon**. Publishing a stable release triggers a site rebuild; after enabling
-Homebrew, manually rerun **Publish website** so its install command appears.
+If the website goes live before a release is published, its build fails with
+"requires published release data" instead of showing a placeholder: the site
+always links the newest published release. Publishing a stable release triggers
+a site rebuild; after enabling Homebrew, manually rerun **Publish website** so
+its install command appears.

@@ -221,6 +221,36 @@ class ReleaseToolsTests(unittest.TestCase):
             self.assertNotIn("do-not-upload", data)
             self.assertEqual(json.loads(data), site.release_data(release))
 
+    def test_site_requires_a_published_release(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            (root / "site").mkdir()
+            for name in ["Resources/AppLogo.png", "Resources/AppIcon-1024.png",
+                         "docs/images/sessions-light.png", "docs/images/sessions-dark.png"]:
+                path = root / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(b"fixture")
+            with patch.object(site, "ROOT", root), patch.object(site, "latest_release", return_value=None):
+                with self.assertRaises(SystemExit):
+                    site.prepare(None)
+
+    def test_site_keeps_the_last_release_when_none_can_be_fetched(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            (root / "site").mkdir()
+            for name in ["Resources/AppLogo.png", "Resources/AppIcon-1024.png",
+                         "docs/images/sessions-light.png", "docs/images/sessions-dark.png"]:
+                path = root / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(b"fixture")
+            generated = root / "site/src/lib/generated"
+            generated.mkdir(parents=True)
+            previous = site.release_data(self.release(), homebrew_ready=True)
+            (generated / "release.json").write_text(json.dumps(previous))
+            with patch.object(site, "ROOT", root), patch.object(site, "latest_release", return_value=None):
+                site.prepare(None)
+            self.assertEqual(json.loads((generated / "release.json").read_text()), previous)
+
     def test_cask_uses_final_dmg_hash_and_warns_for_ad_hoc_builds(self):
         with tempfile.TemporaryDirectory() as temp:
             dmg = Path(temp) / "release.dmg"
