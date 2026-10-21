@@ -347,35 +347,87 @@ final class MutagenClient {
         }
         environment["PATH"] = ordered.joined(separator: ":")
 
-        if environment["SSH_AUTH_SOCK"] == nil {
-            // A Finder/Spotlight-launched app inherits launchd's system agent,
-            // which usually holds no identities. The user's real agent (e.g.
-            // Bitwarden, 1Password) is configured in their login shell, so ask
-            // that first; fall back to launchd only if it has nothing usable.
-            if let socket = loginShellEnvironmentVariable("SSH_AUTH_SOCK"),
-               FileManager.default.fileExists(atPath: (socket as NSString).expandingTildeInPath) {
-                environment["SSH_AUTH_SOCK"] = (socket as NSString).expandingTildeInPath
-            } else if let socket = launchctlGetenv("SSH_AUTH_SOCK") {
-                environment["SSH_AUTH_SOCK"] = socket
-            }
+        if let socket = preferredAgentSocket(including: environment["SSH_AUTH_SOCK"]) {
+            environment["SSH_AUTH_SOCK"] = socket
         }
         return environment
     }
 
-    /// Read an environment variable as the user's login shell sees it. GUI apps
-    /// launched outside a terminal do not inherit these. Returns nil on failure.
-    private static func loginShellEnvironmentVariable(_ key: String) -> String? {
+    /// One way of learning about the user's SSH agent, and whether that agent
+    /// currently holds any identities.
+    struct AgentCandidate {
+        var socket: String
+        var hasKeys: Bool
+    }
+
+    /// The SSH agent socket to use. macOS hands GUI apps launchd's system
+    /// agent — an `SSH_AUTH_SOCK` that exists but usually holds no identities —
+    /// so an inherited value is not trusted on its own. The real agent (1Password,
+    /// Bitwarden, …) is usually configured in a shell startup file, but not
+    /// always the same one: `.zprofile` is read by login shells, `.zshrc` only
+    /// by interactive ones. All sources are consulted and the first socket whose
+    /// agent actually holds keys wins.
+    static func preferredAgentSocket(including inherited: String? = nil) -> String? {
+        var candidates: [AgentCandidate] = []
+        var seen = Set<String>()
+        let sockets = [
+            inherited,
+            shellEnvironmentVariable("SSH_AUTH_SOCK", arguments: ["-lc"]),
+            shellEnvironmentVariable("SSH_AUTH_SOCK", arguments: ["-ic"]),
+            launchctlGetenv("SSH_AUTH_SOCK")
+        ]
+        for raw in sockets.compactMap({ $0 }) {
+            let socket = (raw as NSString).expandingTildeInPath
+            guard !socket.isEmpty, !seen.contains(socket),
+                  FileManager.default.fileExists(atPath: socket) else { continue }
+            seen.insert(socket)
+            candidates.append(AgentCandidate(socket: socket, hasKeys: agentHasKeys(socket)))
+        }
+        return chooseAgentSocket(candidates)
+    }
+
+    /// The first agent that holds keys, else the first agent that exists at all.
+    static func chooseAgentSocket(_ candidates: [AgentCandidate]) -> String? {
+        candidates.first(where: \.hasKeys)?.socket ?? candidates.first?.socket
+    }
+
+    /// Whether `ssh-add` can list identities from this agent (exit status 0).
+    private static func agentHasKeys(_ socket: String) -> Bool {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/ssh-add")
+        process.arguments = ["-l"]
+        var environment = ProcessInfo.processInfo.environment
+        environment["SSH_AUTH_SOCK"] = socket
+        process.environment = environment
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = FileHandle.nullDevice
+        do { try process.run() } catch { return false }
+        process.waitUntilExit()
+        return process.terminationStatus == 0
+    }
+
+    /// Read an environment variable the way the user's shell sees it. GUI apps
+    /// launched outside a terminal do not inherit these. `arguments` selects
+    /// which startup files apply: `-lc` reads the login files (e.g. `.zprofile`),
+    /// `-ic` the interactive ones (e.g. `.zshrc`), where agent setup guides
+    /// usually put `SSH_AUTH_SOCK`. Startup files may print output of their
+    /// own, so the value travels back on a marked line. Returns nil on failure.
+    private static func shellEnvironmentVariable(_ key: String, arguments: [String]) -> String? {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/bin/zsh")
-        process.arguments = ["-lc", "printf %s \"$\(key)\""]
+        process.arguments = arguments + ["printf '\\nsymplast-env:%s\\n' \"$\(key)\""]
         let pipe = Pipe()
         process.standardOutput = pipe
-        process.standardError = Pipe()
+        process.standardError = FileHandle.nullDevice
         do { try process.run() } catch { return nil }
         process.waitUntilExit()
         guard process.terminationStatus == 0 else { return nil }
         let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        let value = String(decoding: data, as: UTF8.self)
+        let output = String(decoding: data, as: UTF8.self)
+        // The last marked line wins: startup files may have printed above it.
+        guard let line = output.components(separatedBy: "\n")
+            .last(where: { $0.hasPrefix("symplast-env:") }) else { return nil }
+        let value = line.dropFirst("symplast-env:".count)
             .trimmingCharacters(in: .whitespacesAndNewlines)
         return value.isEmpty ? nil : value
     }
