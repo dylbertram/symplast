@@ -68,16 +68,18 @@ struct NewSessionView: View {
                     Divider()
                     PanelSection {
                         inlineField("Sync mode", sectionTitle: true) {
-                            Picker("Sync mode", selection: $store.draft.modeChoice) {
-                                ForEach(NewSessionDraft.ModeChoice.allCases) { Text($0.title).tag($0) }
+                            HStack(spacing: 8) {
+                                Picker("Sync mode", selection: $store.draft.modeChoice) {
+                                    ForEach(NewSessionDraft.ModeChoice.allCases) { Text($0.title).tag($0) }
+                                }
+                                .labelsHidden()
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                if store.draft.modeChoice.isOneWay {
+                                    Toggle("Safe", isOn: $store.draft.oneWaySafe)
+                                        .fixedSize()
+                                        .help("Checked: target-only files are left untouched. Unchecked: the target becomes an exact replica and target-only files are overwritten or deleted.")
+                                }
                             }
-                            .labelsHidden()
-                        }
-                        if store.draft.modeChoice.isOneWay {
-                            Toggle("Safe", isOn: $store.draft.oneWaySafe)
-                                .fixedSize()
-                                .help("Checked: target-only files are left untouched. Unchecked: the target becomes an exact replica and target-only files are overwritten or deleted.")
-                                .padding(.leading, 80)
                         }
                         Text(store.draft.modeChoice.detail(oneWaySafe: store.draft.oneWaySafe))
                             .font(.system(size: 10))
