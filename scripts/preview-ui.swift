@@ -155,7 +155,9 @@ struct UIPreview {
             store.draft.targetKind = .local
             try capture("local-target", height: Layout.formHeight)
             store.draft.targetKind = .custom
-            store.draft.modeChoice = .oneWayReplica
+            store.draft.modeChoice = .oneWayLocalToRemote
+            try capture("one-way-safe", height: Layout.formHeight)
+            store.draft.oneWaySafe = false
             try capture("custom-target", height: Layout.formHeight)
             store.beginEdit(fixtures[0])
             try capture("edit-session", height: Layout.formHeight)
