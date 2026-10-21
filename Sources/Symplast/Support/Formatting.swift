@@ -12,6 +12,10 @@ enum Format {
         byteFormatter.string(fromByteCount: Int64(count))
     }
 
+    static func bytes(_ count: Int64) -> String {
+        byteFormatter.string(fromByteCount: count)
+    }
+
     static func number(_ value: Int) -> String {
         NumberFormatter.localizedString(from: NSNumber(value: value), number: .decimal)
     }
@@ -33,6 +37,13 @@ enum PathUtil {
         guard !trimmed.isEmpty else { return trimmed }
         let expanded = (trimmed as NSString).expandingTildeInPath
         return expanded
+    }
+
+    /// Whether the path names a folder that exists right now.
+    static func isExistingDirectory(_ raw: String) -> Bool {
+        var isDirectory: ObjCBool = false
+        return FileManager.default.fileExists(atPath: expand(raw), isDirectory: &isDirectory)
+            && isDirectory.boolValue
     }
 
     static func abbreviate(_ path: String) -> String {

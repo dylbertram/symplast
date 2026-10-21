@@ -207,6 +207,9 @@ struct NewSessionView: View {
                 Text(isEditing ? "Saving…" : "Creating…")
                     .font(.system(size: 11)).foregroundStyle(.secondary)
             }
+            Button("Preview…") { store.beginSyncPreview() }
+                .disabled(isCreating || !store.draft.canPreview)
+                .help("Compare both folders and see what the first sync would change")
             Spacer()
             Button("Cancel") { store.cancelForm() }
                 .keyboardShortcut(.cancelAction)
@@ -238,8 +241,7 @@ struct NewSessionView: View {
     private func create() {
         error = nil
         let localPath = PathUtil.expand(store.draft.localPath)
-        var isDirectory: ObjCBool = false
-        guard FileManager.default.fileExists(atPath: localPath, isDirectory: &isDirectory), isDirectory.boolValue else {
+        guard PathUtil.isExistingDirectory(store.draft.localPath) else {
             error = "Choose an existing local folder: \(localPath)"
             return
         }

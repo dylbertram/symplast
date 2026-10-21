@@ -1,7 +1,7 @@
 import Foundation
 
 /// Screens available in the menu panel.
-enum PanelRoute { case list, newSession, settings, remoteBrowser }
+enum PanelRoute { case list, newSession, settings, remoteBrowser, syncPreview }
 
 /// Editable state for the New/Edit Session form. It lives in `AppStore` (not in
 /// the view) so that a folder-picker interaction — which briefly dismisses the
@@ -221,6 +221,11 @@ struct NewSessionDraft: Codable, Equatable {
             && !resolvedTarget.isEmpty
     }
 
+    /// Enough filled in to compare the two sides, which needs no session name.
+    var canPreview: Bool {
+        !PathUtil.expand(localPath).isEmpty && !resolvedTarget.isEmpty
+    }
+
     func toSavedSession() -> SavedSession {
         let local = PathUtil.expand(localPath)
         let target = resolvedTarget
@@ -248,34 +253,42 @@ struct NewSessionDraft: Codable, Equatable {
 
     // MARK: - SSH parsing
 
-    private mutating func parseSSH(_ value: String) -> Bool {
+    /// Split an SSH-looking target into its components, for both the
+    /// `ssh://user@host:port/path` and the `user@host:path` spelling. Any other
+    /// URL scheme, or a bare `host:path` with no user, is not SSH here.
+    static func parseSSHEndpoint(_ value: String) -> (user: String, host: String, port: String, path: String)? {
         if value.hasPrefix("ssh://") {
             let rest = String(value.dropFirst("ssh://".count))
-            guard let slash = rest.firstIndex(of: "/") else { return false }
+            guard let slash = rest.firstIndex(of: "/") else { return nil }
             let authority = String(rest[..<slash])
             let path = String(rest[slash...])
-            guard !authority.isEmpty else { return false }
-            let (user, hostPort) = Self.splitUser(authority)
-            let (host, port) = Self.splitPort(hostPort)
-            guard let host, !host.isEmpty else { return false }
-            sshUser = user ?? "admin"
-            sshHost = host
-            sshPort = port ?? ""
-            sshPath = path
-            return true
+            guard !authority.isEmpty else { return nil }
+            let (user, hostPort) = splitUser(authority)
+            let (host, port) = splitPort(hostPort)
+            guard let host, !host.isEmpty else { return nil }
+            return (user ?? "admin", host, port ?? "", path)
         }
 
-        guard let colon = value.firstIndex(of: ":") else { return false }
+        // Anything else with a scheme (docker://, http://, …) is a custom
+        // Mutagen URL, not an SSH endpoint.
+        guard !value.contains("://") else { return nil }
+        guard let colon = value.firstIndex(of: ":") else { return nil }
         let prefix = String(value[..<colon])
+        guard prefix.contains("@") else { return nil }
         var path = String(value[value.index(after: colon)...])
-        let (user, hostPort) = Self.splitUser(prefix)
-        let (host, port) = Self.splitPort(hostPort)
-        guard let host, !host.isEmpty else { return false }
-        sshUser = user ?? "admin"
-        sshHost = host
-        sshPort = port ?? ""
+        let (user, hostPort) = splitUser(prefix)
+        let (host, port) = splitPort(hostPort)
+        guard let host, !host.isEmpty else { return nil }
         if !path.isEmpty && !path.hasPrefix("/") { path = "/" + path }
-        sshPath = path
+        return (user ?? "admin", host, port ?? "", path)
+    }
+
+    private mutating func parseSSH(_ value: String) -> Bool {
+        guard let endpoint = Self.parseSSHEndpoint(value) else { return false }
+        sshUser = endpoint.user
+        sshHost = endpoint.host
+        sshPort = endpoint.port
+        sshPath = endpoint.path
         return true
     }
 

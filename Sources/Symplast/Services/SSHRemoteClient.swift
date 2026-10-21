@@ -51,6 +51,40 @@ struct RemoteListing: Equatable {
     }
 }
 
+/// The files inside one directory tree on an SSH remote, for the sync preview.
+enum RemoteInventory {
+    /// Parse the output of `script(for:)`: one `relative path\tsize\tmtime`
+    /// line per file.
+    static func parse(_ output: String) -> [PreviewFile] {
+        output.split(whereSeparator: \.isNewline).compactMap { line in
+            let fields = line.split(separator: "\t", omittingEmptySubsequences: false).map(String.init)
+            guard fields.count == 3,
+                  let size = Int64(fields[1]),
+                  let modified = Double(fields[2]) else { return nil }
+            var path = fields[0]
+            if path.hasPrefix("./") { path.removeFirst(2) }
+            guard !path.isEmpty else { return nil }
+            return PreviewFile(path: path, size: size, modified: Int64(modified))
+        }
+    }
+
+    /// The remote shell snippet that prints the inventory. `stat` differs
+    /// between GNU and BSD systems, so both spellings are supported; `%T@`
+    /// prints fractional seconds and BSD's `%m` whole seconds, and comparison
+    /// happens in whole seconds either way.
+    static func script(for path: String) -> String {
+        let quoted = RemoteListing.shellQuote(path)
+        return "p=\(quoted); "
+            + "case \"$p\" in \"~\") p=\"$HOME\";; \"~/\"*) p=\"$HOME${p#\\~}\";; esac; "
+            + "[ -n \"$p\" ] || p=\"$HOME\"; "
+            + "p=\"${p%/}\"; [ -n \"$p\" ] || p=\"/\"; "
+            + "cd \"$p\" 2>/dev/null || { printf 'symplast: cannot access %s\\n' \"$p\" >&2; exit 2; }; "
+            + "if stat -c '%s' . >/dev/null 2>&1; then "
+            + "find . -type f -printf '%P\\t%s\\t%T@\\n' 2>/dev/null; "
+            + "else find . -type f -exec stat -f '%N\\t%z\\t%m' {} + 2>/dev/null; fi"
+    }
+}
+
 enum RemoteBrowseError: LocalizedError {
     case timedOut
     case inaccessible(String)
@@ -89,23 +123,32 @@ struct SSHRemoteClient {
     /// List the folders inside `path` on the remote. An empty path means the
     /// remote home directory.
     func list(at path: String) async throws -> RemoteListing {
+        let result = try await execute(script: RemoteListing.listScript(for: path), inaccessiblePath: path)
+        guard let listing = RemoteListing.parse(result.stdout) else {
+            throw RemoteBrowseError.commandFailed("The server returned no folder listing.")
+        }
+        return listing
+    }
+
+    /// Inventory the files under `path` on the remote, for the sync preview.
+    func inventory(at path: String) async throws -> [PreviewFile] {
+        let result = try await execute(script: RemoteInventory.script(for: path), inaccessiblePath: path)
+        return RemoteInventory.parse(result.stdout)
+    }
+
+    private func execute(script: String, inaccessiblePath: String) async throws -> CommandResult {
         var arguments = ["-o", "BatchMode=yes", "-o", "ConnectTimeout=8",
                          "-o", "StrictHostKeyChecking=accept-new"]
         let port = port.trimmingCharacters(in: .whitespaces)
         if !port.isEmpty { arguments += ["-p", port] }
         arguments.append(destination)
-        arguments.append(RemoteListing.listScript(for: path))
+        arguments.append(script)
 
         let result = try await run(arguments)
-        if result.succeeded {
-            guard let listing = RemoteListing.parse(result.stdout) else {
-                throw RemoteBrowseError.commandFailed("The server returned no folder listing.")
-            }
-            return listing
-        }
+        if result.succeeded { return result }
         let message = result.trimmedError.isEmpty ? result.trimmedOutput : result.trimmedError
         if message.contains("symplast: cannot access") {
-            throw RemoteBrowseError.inaccessible(path.trimmingCharacters(in: .whitespaces))
+            throw RemoteBrowseError.inaccessible(inaccessiblePath.trimmingCharacters(in: .whitespaces))
         }
         throw RemoteBrowseError.commandFailed(message)
     }

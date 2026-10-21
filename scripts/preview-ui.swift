@@ -159,6 +159,22 @@ struct UIPreview {
             try capture("one-way-safe", height: Layout.formHeight)
             store.draft.oneWaySafe = false
             try capture("custom-target", height: Layout.formHeight)
+            store.setPreviewReport(SyncPreviewReport(
+                localPath: "\(NSHomeDirectory())/Developer/website",
+                targetPath: "deploy@studio.example.com:/srv/projects/website",
+                entries: [
+                    SyncPreview.Entry(path: "assets/logo.svg", outcome: .overwritten(.target), size: 24_500),
+                    SyncPreview.Entry(path: "dist/app.css", outcome: .overwritten(.target), size: 131_000),
+                    SyncPreview.Entry(path: "README.md", outcome: .overwritten(.target), size: 2_300),
+                    SyncPreview.Entry(path: "assets/photo.jpg", outcome: .deleted(.target), size: 1_800_000),
+                    SyncPreview.Entry(path: "index.html", outcome: .created(.target), size: 8_400),
+                    SyncPreview.Entry(path: "assets/icon.png", outcome: .created(.target), size: 56_000),
+                    SyncPreview.Entry(path: "assets/hero.png", outcome: .created(.target), size: 2_400_000),
+                    SyncPreview.Entry(path: "drafts/notes.md", outcome: .kept(.target), size: 900)
+                ],
+                unchangedCount: 41_210, truncated: false, notice: nil))
+            try capture("sync-preview", height: Layout.previewHeight)
+            store.route = .list
             store.beginEdit(fixtures[0])
             try capture("edit-session", height: Layout.formHeight)
             store.route = .settings

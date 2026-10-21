@@ -117,6 +117,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             height = Layout.formHeight
         case .remoteBrowser:
             height = Layout.browserHeight
+        case .syncPreview:
+            height = Layout.previewHeight
         case .settings:
             height = Layout.settingsHeight
         case .list:

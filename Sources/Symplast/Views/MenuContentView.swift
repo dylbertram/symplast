@@ -16,6 +16,8 @@ struct MenuContentView: View {
                 if let target = store.remoteBrowseTarget {
                     RemoteBrowserView(store: store, target: target)
                 }
+            case .syncPreview:
+                SyncPreviewView(store: store)
             }
         }
         .frame(width: Layout.panelWidth)

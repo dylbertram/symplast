@@ -18,8 +18,11 @@ file synchronization and continues running if you quit Symplast.
    untouched. Uncheck **Safe** to turn the session into a **replica**, which
    overwrites or deletes those files on the receiving side.
 4. Optionally exclude version-control folders or build output (`node_modules/`,
-   `target/`, `build/`, `bin/`, `*.o`) and add ignore patterns, then choose
-   **Create session**.
+   `target/`, `build/`, `bin/`, `*.o`) and add ignore patterns.
+5. Choose **Preview…** to compare both folders first: which files the first
+   sync would add, overwrite or — in replica mode — delete. The comparison is
+   an estimate from names, sizes and modification times, but it shows where an
+   overwrite would land. Confirm with **Create session**.
 
 For SSH targets, use a key available through your SSH agent and configuration;
 Symplast cannot prompt for passwords or key passphrases. See
