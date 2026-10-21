@@ -79,6 +79,9 @@ Before the tap is published, this command is not available.
 ## Uninstall
 
 Quit Symplast and remove `/Applications/Symplast.app`, or run
-`brew uninstall --cask symplast`. This does **not** terminate Mutagen's daemon or
-delete its running sessions or files. Homebrew's optional `--zap` also removes
-Symplast's preferences and remembered definitions; those definitions are not backups.
+`brew uninstall --cask symplast`. From a source checkout,
+`./scripts/uninstall.sh` does the same and also clears stale LaunchServices
+records; pass it `--purge` for what Homebrew's `--zap` does. This does **not**
+terminate Mutagen's daemon or delete its running sessions or files. Homebrew's
+optional `--zap` (and `uninstall.sh --purge`) also removes Symplast's
+preferences and remembered definitions; those definitions are not backups.

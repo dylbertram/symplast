@@ -171,6 +171,8 @@ BUNDLE_MUTAGEN=1 \
 ```sh
 ./scripts/install.sh                    # build, copy to /Applications, launch
 BUNDLE_MUTAGEN=1 ./scripts/install.sh   # self-contained install
+./scripts/uninstall.sh                  # quit and remove it again
+./scripts/uninstall.sh --purge          # also drop preferences and sessions
 ```
 
 ```sh
